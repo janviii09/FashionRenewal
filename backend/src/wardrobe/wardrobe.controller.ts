@@ -1,46 +1,98 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { WardrobeService } from './wardrobe.service';
-import { Prisma } from '@prisma/client';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ItemAvailability } from '@prisma/client';
 
 @Controller('wardrobe')
 export class WardrobeController {
     constructor(private readonly wardrobeService: WardrobeService) { }
 
-    @UseGuards(AuthGuard('jwt'))
+    /**
+     * Create a wardrobe item
+     * POST /wardrobe
+     */
+    @UseGuards(JwtAuthGuard)
     @Post()
-    create(@Request() req, @Body() createWardrobeDto: Prisma.WardrobeItemCreateWithoutOwnerInput) {
-        return this.wardrobeService.createItem({
-            ...createWardrobeDto,
-            owner: { connect: { id: req.user.userId } },
+    async createItem(@Request() req, @Body() data: any) {
+        return this.wardrobeService.createItem(req.user.userId, data);
+    }
+
+    /**
+     * Get user's personal wardrobe
+     * GET /wardrobe/my-items
+     */
+    @UseGuards(JwtAuthGuard)
+    @Get('my-items')
+    async getMyWardrobe(
+        @Request() req,
+        @Query('availability') availability?: ItemAvailability,
+        @Query('category') category?: string,
+        @Query('search') search?: string,
+    ) {
+        return this.wardrobeService.getUserWardrobe(req.user.userId, {
+            availability,
+            category,
+            search,
         });
     }
 
-    @Get()
-    findAll(@Query() query: { category?: string; status?: any }) {
-        const where: Prisma.WardrobeItemWhereInput = {};
-        if (query.category) where.category = query.category;
-        if (query.status) where.status = query.status;
-        return this.wardrobeService.findAll({ where });
+    /**
+     * Get marketplace items (public)
+     * GET /wardrobe/marketplace
+     */
+    @Get('marketplace')
+    async getMarketplaceItems(
+        @Query('availability') availability?: ItemAvailability,
+        @Query('category') category?: string,
+        @Query('minPrice') minPrice?: string,
+        @Query('maxPrice') maxPrice?: string,
+        @Query('search') search?: string,
+    ) {
+        return this.wardrobeService.getMarketplaceItems({
+            availability,
+            category,
+            minPrice: minPrice ? parseFloat(minPrice) : undefined,
+            maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+            search,
+        });
     }
 
+    /**
+     * Get a single item
+     * GET /wardrobe/:id
+     */
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.wardrobeService.findOne(+id);
+    async getItem(@Param('id') id: string, @Request() req) {
+        const userId = req.user?.userId; // Optional - may be unauthenticated
+        return this.wardrobeService.getItem(parseInt(id), userId);
     }
 
-    @UseGuards(AuthGuard('jwt'))
+    /**
+     * Update a wardrobe item
+     * PATCH /wardrobe/:id
+     */
+    @UseGuards(JwtAuthGuard)
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateWardrobeDto: Prisma.WardrobeItemUpdateInput) {
-        return this.wardrobeService.updateItem({
-            where: { id: +id },
-            data: updateWardrobeDto,
-        });
+    async updateItem(
+        @Request() req,
+        @Param('id') id: string,
+        @Body() data: any,
+    ) {
+        return this.wardrobeService.updateItem(
+            parseInt(id),
+            req.user.userId,
+            data,
+        );
     }
 
-    @UseGuards(AuthGuard('jwt'))
+    /**
+     * Delete a wardrobe item
+     * DELETE /wardrobe/:id
+     */
+    @UseGuards(JwtAuthGuard)
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.wardrobeService.deleteItem({ id: +id });
+    async deleteItem(@Request() req, @Param('id') id: string) {
+        await this.wardrobeService.deleteItem(parseInt(id), req.user.userId);
+        return { message: 'Item deleted successfully' };
     }
 }

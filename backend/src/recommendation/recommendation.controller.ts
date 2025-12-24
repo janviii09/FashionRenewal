@@ -1,13 +1,14 @@
-import { Controller, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { RecommendationService } from './recommendation.service';
-// import { AuthGuard } from '@nestjs/passport'; // Recommendations might be system admin triggered
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('recommendations')
+@UseGuards(JwtAuthGuard)
 export class RecommendationController {
     constructor(private readonly recService: RecommendationService) { }
 
-    @Post('trigger')
-    trigger() {
-        return this.recService.generateRecommendations();
+    @Get()
+    async getRecommendations(@Request() req) {
+        return this.recService.getRecommendations(req.user.id);
     }
 }

@@ -1,8 +1,9 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Order, Prisma, OrderStatus, OrderType } from '@prisma/client';
 import { OrderStateMachineService } from './order-state-machine.service';
 import { AuditService } from '../audit/audit.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class MarketplaceService {
@@ -10,8 +11,13 @@ export class MarketplaceService {
         private prisma: PrismaService,
         private stateMachine: OrderStateMachineService,
         private audit: AuditService,
+        private subscriptionService: SubscriptionService,
     ) { }
 
+    /**
+     * CRITICAL: Create order with subscription enforcement
+     * Personal wardrobe is FREE - subscription only for marketplace
+     */
     async createOrder(data: Prisma.OrderCreateInput, requesterId: number, idempotencyKey?: string): Promise<Order> {
         // Basic validation: check if item exists
         const item = await this.prisma.wardrobeItem.findUnique({
@@ -21,20 +27,45 @@ export class MarketplaceService {
 
         // Anti double-booking: Check for overlapping rentals
         if (data.type === OrderType.RENT && data.startDate && data.endDate) {
-            // Convert to Date objects if they're strings
             const startDate = data.startDate instanceof Date ? data.startDate : new Date(data.startDate as string);
             const endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate as string);
             await this.checkDateConflict(data.item.connect.id, startDate, endDate);
         }
 
-        // Create order in transaction
+        // CRITICAL: Check subscription limits BEFORE creating order
+        // Personal wardrobe is ALWAYS free - this only applies to marketplace
+        if (data.type === OrderType.RENT || data.type === OrderType.SWAP) {
+            const check = await this.subscriptionService.checkUsage(
+                requesterId,
+                data.type as 'RENT' | 'SWAP'
+            );
+
+            if (!check.allowed) {
+                throw new ForbiddenException(
+                    check.reason || 'Subscription limit exceeded'
+                );
+            }
+        }
+
+        // Create order in transaction WITH subscription increment
+        // This prevents concurrent bypass of limits
         const order = await this.prisma.$transaction(async (tx) => {
             const newOrder = await tx.order.create({
                 data: {
                     ...data,
-                    idempotencyKey, // Store idempotency key
+                    idempotencyKey,
                 }
             });
+
+            // CRITICAL: Increment subscription usage IN TRANSACTION
+            // This ensures atomic operation - no concurrent bypass possible
+            if (data.type === OrderType.RENT || data.type === OrderType.SWAP) {
+                await this.subscriptionService.incrementUsageInTransaction(
+                    tx,
+                    requesterId,
+                    data.type as 'RENT' | 'SWAP'
+                );
+            }
 
             // Audit log
             await this.audit.log('ORDER', newOrder.id, 'CREATED', requesterId, null, newOrder);
@@ -53,7 +84,7 @@ export class MarketplaceService {
             where: {
                 itemId,
                 type: OrderType.RENT,
-                deletedAt: null, // Only check non-deleted orders
+                deletedAt: null,
                 status: {
                     in: [
                         OrderStatus.APPROVED,

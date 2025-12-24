@@ -11,13 +11,18 @@ yarn-error.log*
 .env.development.local
 .env.production
 .env.production.local
+.env.production.example
 .env.test
 .env.test.local
 
-# Build output
+# Build# Build
 dist/
 build/
 *.tsbuildinfo
+
+# Prisma - only ignore generated files, NOT schema or migrations
+prisma/*.db
+prisma/*.db-journal
 
 # IDE
 .vscode/
@@ -55,3 +60,7 @@ Thumbs.db
 # Docker
 .dockerignore
 docker-compose.override.yml
+PRODUCTION_DEPLOY.md
+backened/README.md
+SWAP_BETA_WARNING.md
+uploads/

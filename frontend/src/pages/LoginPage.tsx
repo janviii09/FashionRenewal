@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, ShoppingBag, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ShoppingBag, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,32 +35,42 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Simulate API call for demo
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Demo login - in production this would call the API
-      const demoUser = {
-        id: '1',
-        email: data.email,
-        name: data.email.split('@')[0],
-        trustScore: 4.8,
-        subscriptionTier: 'BASIC' as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      login(demoUser, 'demo-token');
-      
+      // Call backend login API
+      const response = await fetch('http://localhost:3000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Invalid credentials');
+      }
+
+      const result = await response.json();
+
+      // Backend now returns { access_token, user }
+      const { access_token, user } = result;
+
+      if (!access_token || !user) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Store user and token
+      login(user, access_token);
+
       toast({
         title: 'Welcome back!',
-        description: 'You have successfully logged in.',
+        description: `Logged in as ${user.email}`,
       });
-      
+
       navigate('/dashboard');
     } catch (error) {
       toast({
         title: 'Login failed',
-        description: 'Invalid email or password. Please try again.',
+        description: error instanceof Error ? error.message : 'Invalid email or password. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -73,6 +83,8 @@ export default function LoginPage() {
       {/* Left side - Form */}
       <div className="flex w-full flex-col justify-center px-4 py-12 lg:w-1/2 lg:px-12">
         <div className="mx-auto w-full max-w-md">
+
+
           <Link to="/" className="inline-flex items-center gap-2 mb-8">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-bg">
               <ShoppingBag className="h-5 w-5 text-primary-foreground" />
@@ -159,6 +171,17 @@ export default function LoginPage() {
               Create one
             </Link>
           </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              to="/"
+              className="group inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card/50 backdrop-blur-sm hover:bg-card hover:border-primary/50 transition-all duration-200 w-fit mx-auto"
+            >
+              <ArrowLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                Back to home
+              </span>
+            </Link>
+          </div>
         </div>
       </div>
 

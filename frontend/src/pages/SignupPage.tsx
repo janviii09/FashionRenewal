@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, ShoppingBag, Loader2, Check, X } from 'lucide-react';
+import { Eye, EyeOff, ShoppingBag, Loader2, Check, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,32 +67,61 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
     try {
-      // Simulate API call for demo
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Demo signup - in production this would call the API
-      const newUser = {
-        id: '1',
-        email: data.email,
-        name: data.name,
-        trustScore: 5.0,
-        subscriptionTier: 'BASIC' as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      login(newUser, 'demo-token');
-      
+      // Call real backend API to create user
+      const signupResponse = await fetch('http://localhost:3000/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.name,
+        }),
+      });
+
+      if (!signupResponse.ok) {
+        const error = await signupResponse.json();
+        throw new Error(error.message || 'Signup failed');
+      }
+
+      // After signup, login to get the token
+      const loginResponse = await fetch('http://localhost:3000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+      });
+
+      if (!loginResponse.ok) {
+        throw new Error('Login after signup failed');
+      }
+
+      const loginResult = await loginResponse.json();
+
+      // Backend now returns { access_token, user }
+      const { access_token, user } = loginResult;
+
+      if (!access_token || !user) {
+        throw new Error('Invalid response from server');
+      }
+
+      login(user, access_token);
+
       toast({
         title: 'Account created!',
-        description: 'Welcome to FashionRenewal. Let\'s get started!',
+        description: `Welcome to FashionRenewal, ${user.name}!`,
       });
-      
+
       navigate('/dashboard');
     } catch (error) {
       toast({
         title: 'Signup failed',
-        description: 'Something went wrong. Please try again.',
+        description: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -110,7 +139,7 @@ export default function SignupPage() {
           <p className="mt-4 text-lg text-primary-foreground/80">
             Create an account to rent designer pieces, sell items you don't wear, and join our sustainable fashion community.
           </p>
-          
+
           <div className="mt-12 grid gap-4 text-left">
             {[
               'Access to thousands of designer items',
@@ -132,6 +161,8 @@ export default function SignupPage() {
       {/* Right side - Form */}
       <div className="flex w-full flex-col justify-center px-4 py-12 lg:w-1/2 lg:px-12">
         <div className="mx-auto w-full max-w-md">
+
+
           <Link to="/" className="inline-flex items-center gap-2 mb-8">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-bg">
               <ShoppingBag className="h-5 w-5 text-primary-foreground" />
@@ -195,7 +226,7 @@ export default function SignupPage() {
                   )}
                 </button>
               </div>
-              
+
               {/* Password strength */}
               <div className="mt-2 space-y-1.5">
                 {passwordRequirements.map((req) => {
@@ -284,6 +315,18 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+
+          <div className="mt-6 flex justify-center">
+            <Link
+              to="/"
+              className="group inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card/50 backdrop-blur-sm hover:bg-card hover:border-primary/50 transition-all duration-200 w-fit"
+            >
+              <ArrowLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                Back to home
+              </span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

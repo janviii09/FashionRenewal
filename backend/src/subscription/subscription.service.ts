@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { Subscription, UserSubscription, Prisma } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private audit: AuditService,
+    ) { }
 
     /**
      * Create a subscription plan
@@ -79,17 +83,33 @@ export class SubscriptionService {
     }
 
     /**
-     * Increment usage counter
+     * CRITICAL: Increment usage in transaction
+     * This MUST be called within the order creation transaction
+     * to prevent concurrent bypass
      */
-    async incrementUsage(userId: number, action: 'RENT' | 'SWAP'): Promise<void> {
+    async incrementUsageInTransaction(
+        tx: any, // Prisma transaction client
+        userId: number,
+        action: 'RENT' | 'SWAP',
+    ): Promise<void> {
         const field = action === 'RENT' ? 'rentalsUsed' : 'swapsUsed';
 
-        await this.prisma.userSubscription.update({
+        const updated = await tx.userSubscription.update({
             where: { userId },
             data: {
                 [field]: { increment: 1 },
             },
         });
+
+        // AUDIT: Log subscription usage (CRITICAL for billing and disputes)
+        await this.audit.log(
+            'USER_SUBSCRIPTION',
+            updated.id,
+            'USAGE_INCREMENT',
+            userId,
+            { [field]: updated[field] - 1 },
+            { [field]: updated[field], action },
+        );
     }
 
     /**

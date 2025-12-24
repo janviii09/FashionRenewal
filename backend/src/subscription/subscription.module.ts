@@ -1,9 +1,11 @@
-import { Module, Global } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import { SubscriptionGuard } from './subscription.guard';
+import { PrismaModule } from '../prisma/prisma.module';
+import { AuditModule } from '../audit/audit.module';
 
-@Global()
 @Module({
+    imports: [PrismaModule, AuditModule],
     providers: [SubscriptionService, SubscriptionGuard],
     exports: [SubscriptionService, SubscriptionGuard],
 })

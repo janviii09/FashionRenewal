@@ -8,15 +8,19 @@ export class RecommendationService {
     constructor(private prisma: PrismaService) { }
 
     // In a real app, this would be a Cron job using @nestjs/schedule
-    async generateRecommendations() {
+    async getRecommendations(userId: number) {
         this.logger.log('Running recommendation engine...');
 
-        // Logic: Find items with low wear count in last 6 months -> Suggest RENT or SELL
-        const items = await this.prisma.wardrobeItem.findMany({
-            where: { wearCount: { lt: 5 }, status: 'KEEP' }
+        // Simple rule-based recommendations
+        // TODO: Enhance with ML/collaborative filtering
+        const underutilized = await this.prisma.wardrobeItem.findMany({
+            where: {
+                wearCount: { lt: 5 },
+                deletedAt: null // Only active items
+            }
         });
 
-        const recommendations = items.map(item => ({
+        const recommendations = underutilized.map(item => ({
             itemId: item.id,
             action: 'RENT_OR_SELL',
             reason: 'Low wear frequency detected'

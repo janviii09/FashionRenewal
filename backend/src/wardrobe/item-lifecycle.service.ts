@@ -44,7 +44,7 @@ export class ItemLifecycleService {
         // Update item's current condition
         await this.prisma.wardrobeItem.update({
             where: { id: itemId },
-            data: { condition: conditionAfter },
+            data: { condition: conditionAfter as any },
         });
 
         return history;
