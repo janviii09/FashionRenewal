@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Upload, X, Plus, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2 } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +32,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { wardrobeApi } from '@/lib/api';
-import { ItemCondition, ItemAvailability } from '@/types';
+import { ItemCondition, ItemAvailability, type WardrobeItem } from '@/types';
 
 const conditions: { value: ItemCondition; label: string }[] = [
     { value: ItemCondition.NEW, label: 'New with tags' },
@@ -43,14 +42,14 @@ const conditions: { value: ItemCondition; label: string }[] = [
     { value: ItemCondition.WORN, label: 'Worn' },
 ];
 
-const addItemSchema = z.object({
+const editItemSchema = z.object({
     title: z.string().min(3, 'Title must be at least 3 characters').max(100),
     description: z.string().optional(),
     brand: z.string().min(1, 'Brand is required').max(50).optional(),
     category: z.string().min(1, 'Category is required'),
     size: z.string().optional(),
     condition: z.nativeEnum(ItemCondition),
-    availability: z.nativeEnum(ItemAvailability).default(ItemAvailability.PERSONAL_ONLY),
+    availability: z.nativeEnum(ItemAvailability),
     rentPricePerDay: z.coerce.number().min(1).optional(),
     sellPrice: z.coerce.number().min(1).optional(),
 }).refine((data) => {
@@ -71,33 +70,50 @@ const addItemSchema = z.object({
     path: ['sellPrice'],
 });
 
-type AddItemFormData = z.infer<typeof addItemSchema>;
+type EditItemFormData = z.infer<typeof editItemSchema>;
 
-interface AddItemDialogProps {
-    trigger?: React.ReactNode;
-    onItemAdded?: () => void;
+interface EditItemDialogProps {
+    item: WardrobeItem;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onItemUpdated?: () => void;
 }
 
-export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
-    const [open, setOpen] = useState(false);
+export function EditItemDialog({ item, open, onOpenChange, onItemUpdated }: EditItemDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
-    const [images, setImages] = useState<string[]>([]);
+    const [images, setImages] = useState<string[]>(item.images || []);
     const { toast } = useToast();
 
-    const form = useForm<AddItemFormData>({
-        resolver: zodResolver(addItemSchema),
+    const form = useForm<EditItemFormData>({
+        resolver: zodResolver(editItemSchema),
         defaultValues: {
-            title: '',
-            description: '',
-            brand: '',
-            category: '',
-            size: '',
-            condition: ItemCondition.GOOD,
-            availability: ItemAvailability.PERSONAL_ONLY, // CRITICAL: Default to PERSONAL_ONLY
-            rentPricePerDay: undefined,
-            sellPrice: undefined,
+            title: item.title,
+            description: item.description || '',
+            brand: item.brand || '',
+            category: item.category,
+            size: item.size || '',
+            condition: item.condition,
+            availability: item.availability,
+            rentPricePerDay: item.rentPricePerDay || undefined,
+            sellPrice: item.sellPrice || undefined,
         },
     });
+
+    // Reset form when item changes
+    useEffect(() => {
+        form.reset({
+            title: item.title,
+            description: item.description || '',
+            brand: item.brand || '',
+            category: item.category,
+            size: item.size || '',
+            condition: item.condition,
+            availability: item.availability,
+            rentPricePerDay: item.rentPricePerDay || undefined,
+            sellPrice: item.sellPrice || undefined,
+        });
+        setImages(item.images || []);
+    }, [item, form]);
 
     const watchAvailability = form.watch('availability');
 
@@ -137,28 +153,26 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
         setImages((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const onSubmit = async (data: AddItemFormData) => {
+    const onSubmit = async (data: EditItemFormData) => {
         try {
             setIsLoading(true);
 
-            await wardrobeApi.createItem({
+            await wardrobeApi.updateItem(item.id, {
                 ...data,
                 images,
             });
 
             toast({
                 title: 'Success',
-                description: 'Item added to your wardrobe',
+                description: 'Item updated successfully',
             });
 
-            setOpen(false);
-            form.reset();
-            setImages([]);
-            onItemAdded?.();
+            onOpenChange(false);
+            onItemUpdated?.();
         } catch (error: any) {
             toast({
                 title: 'Error',
-                description: error.response?.data?.message || 'Failed to add item',
+                description: error.response?.data?.message || 'Failed to update item',
                 variant: 'destructive',
             });
         } finally {
@@ -167,18 +181,10 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger || (
-                    <Button variant="gradient">
-                        <Plus className="mr-2 h-5 w-5" />
-                        Add Item
-                    </Button>
-                )}
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle className="text-xl">Add New Item</DialogTitle>
+                    <DialogTitle className="text-xl">Edit Item</DialogTitle>
                 </DialogHeader>
 
                 <Form {...form}>
@@ -312,15 +318,12 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                                             {...field}
                                         />
                                     </FormControl>
-                                    <FormDescription className="text-xs">
-                                        You can add this later if you want
-                                    </FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
 
-                        {/* Availability - CRITICAL SECTION */}
+                        {/* Availability */}
                         <FormField
                             control={form.control}
                             name="availability"
@@ -337,26 +340,26 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                                             className="grid gap-3 sm:grid-cols-2"
                                         >
                                             <div className="flex items-center space-x-2 rounded-lg border p-3">
-                                                <RadioGroupItem value={ItemAvailability.PERSONAL_ONLY} id="personal" />
-                                                <Label htmlFor="personal" className="cursor-pointer font-normal">
+                                                <RadioGroupItem value={ItemAvailability.PERSONAL_ONLY} id="edit-personal" />
+                                                <Label htmlFor="edit-personal" className="cursor-pointer font-normal">
                                                     Personal Only (Private)
                                                 </Label>
                                             </div>
                                             <div className="flex items-center space-x-2 rounded-lg border p-3">
-                                                <RadioGroupItem value={ItemAvailability.AVAILABLE_FOR_RENT} id="rent" />
-                                                <Label htmlFor="rent" className="cursor-pointer font-normal">
+                                                <RadioGroupItem value={ItemAvailability.AVAILABLE_FOR_RENT} id="edit-rent" />
+                                                <Label htmlFor="edit-rent" className="cursor-pointer font-normal">
                                                     Available for Rent
                                                 </Label>
                                             </div>
                                             <div className="flex items-center space-x-2 rounded-lg border p-3">
-                                                <RadioGroupItem value={ItemAvailability.AVAILABLE_FOR_SALE} id="sale" />
-                                                <Label htmlFor="sale" className="cursor-pointer font-normal">
+                                                <RadioGroupItem value={ItemAvailability.AVAILABLE_FOR_SALE} id="edit-sale" />
+                                                <Label htmlFor="edit-sale" className="cursor-pointer font-normal">
                                                     Available for Sale
                                                 </Label>
                                             </div>
                                             <div className="flex items-center space-x-2 rounded-lg border p-3">
-                                                <RadioGroupItem value={ItemAvailability.AVAILABLE_FOR_SWAP} id="swap" />
-                                                <Label htmlFor="swap" className="cursor-pointer font-normal">
+                                                <RadioGroupItem value={ItemAvailability.AVAILABLE_FOR_SWAP} id="edit-swap" />
+                                                <Label htmlFor="edit-swap" className="cursor-pointer font-normal">
                                                     Available for Swap
                                                 </Label>
                                             </div>
@@ -417,12 +420,12 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                         )}
 
                         <div className="flex justify-end gap-3 pt-4">
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                                 Cancel
                             </Button>
                             <Button type="submit" variant="gradient" disabled={isLoading}>
                                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isLoading ? 'Adding...' : 'Add Item'}
+                                {isLoading ? 'Saving...' : 'Save Changes'}
                             </Button>
                         </div>
                     </form>

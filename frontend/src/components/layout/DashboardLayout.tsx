@@ -8,7 +8,8 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronLeft
+  ChevronLeft,
+  Heart
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils';
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/wardrobe', label: 'My Wardrobe', icon: Shirt },
+  { href: '/dashboard/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
   { href: '/dashboard/rentals', label: 'Rentals', icon: Calendar },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },

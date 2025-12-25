@@ -6,11 +6,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PublicLayout, DashboardLayout } from "@/components/layout";
 import LandingPage from "@/pages/LandingPage";
 import BrowsePage from "@/pages/BrowsePage";
+import CartPage from "@/pages/CartPage";
+import CheckoutPage from "@/pages/CheckoutPage";
 import ItemDetailPage from "@/pages/ItemDetailPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
 import WardrobePage from "@/pages/dashboard/WardrobePage";
+import WishlistPage from "@/pages/dashboard/WishlistPage";
 import OrdersPage from "@/pages/dashboard/OrdersPage";
 import RentalsPage from "@/pages/dashboard/RentalsPage";
 import SettingsPage from "@/pages/dashboard/SettingsPage";
@@ -33,6 +36,8 @@ const App = () => (
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/browse" element={<BrowsePage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/items/:id" element={<ItemDetailPage />} />
             <Route path="/how-it-works" element={<Navigate to="/#how-it-works" replace />} />
           </Route>
@@ -41,6 +46,7 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="wardrobe" element={<WardrobePage />} />
+            <Route path="wishlist" element={<WishlistPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="rentals" element={<RentalsPage />} />
             <Route path="settings" element={<SettingsPage />} />

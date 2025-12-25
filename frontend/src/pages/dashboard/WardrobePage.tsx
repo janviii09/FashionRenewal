@@ -3,6 +3,7 @@ import { Shirt, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AddItemDialog } from '@/components/items/AddItemDialog';
+import { EditItemDialog } from '@/components/items/EditItemDialog';
 import { ItemCard } from '@/components/items/ItemCard';
 import { useToast } from '@/hooks/use-toast';
 import { wardrobeApi } from '@/lib/api';
@@ -12,6 +13,7 @@ import { ItemAvailability } from '@/types';
 export default function WardrobePage() {
   const [items, setItems] = useState<WardrobeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState<WardrobeItem | null>(null);
   const { toast } = useToast();
 
   const fetchItems = async () => {
@@ -45,6 +47,15 @@ export default function WardrobePage() {
     });
   };
 
+  const handleItemUpdated = () => {
+    fetchItems();
+    setEditingItem(null);
+    toast({
+      title: 'Success',
+      description: 'Item updated successfully',
+    });
+  };
+
   const handleItemDeleted = async (id: number) => {
     try {
       await wardrobeApi.deleteItem(id);
@@ -67,7 +78,7 @@ export default function WardrobePage() {
       <Shirt className="h-12 w-12 text-muted-foreground/50" />
       <h3 className="mt-4 text-lg font-semibold">{message}</h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        Add items to your personal wardrobe or make them available to rent/sell
+        Add your clothes first — keep them private or make them available later
       </p>
       <AddItemDialog
         onItemAdded={handleItemAdded}
@@ -88,6 +99,7 @@ export default function WardrobePage() {
           key={item.id}
           item={item}
           showActions
+          onEdit={() => setEditingItem(item)}
           onDelete={() => handleItemDeleted(item.id)}
           onUpdate={fetchItems}
         />
@@ -109,7 +121,7 @@ export default function WardrobePage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Wardrobe</h1>
           <p className="text-muted-foreground">
-            Manage your personal items and listings
+            Manage your personal items — no subscription required
           </p>
         </div>
         <AddItemDialog onItemAdded={handleItemAdded} />
@@ -146,6 +158,16 @@ export default function WardrobePage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Edit Item Dialog */}
+      {editingItem && (
+        <EditItemDialog
+          item={editingItem}
+          open={!!editingItem}
+          onOpenChange={(open) => !open && setEditingItem(null)}
+          onItemUpdated={handleItemUpdated}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { ArrowRight, Shirt, RefreshCw, DollarSign, Users, ShoppingBag, Star, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CategoryCard } from '@/components/marketplace/CategoryCard';
+import { ItemCard } from '@/components/items/ItemCard';
+import { wardrobeApi } from '@/lib/api';
+import type { WardrobeItem } from '@/types';
 import heroImage from '@/assests/hero-fashion.jpg';
 
 
@@ -29,50 +34,63 @@ const stats = [
   { value: '$2M+', label: 'Earned by Users' },
 ];
 
-// Sample featured items for display
-const featuredItems = [
+
+
+// Category hero sections
+const categoryHeroSections = [
   {
-    id: '1',
-    title: 'Designer Leather Jacket',
-    brand: 'AllSaints',
-    price: '$25/day',
-    image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=500&fit=crop',
-    condition: 'Like New',
+    id: 'rent',
+    title: 'RENT OUTFITS',
+    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=600&fit=crop',
+    link: '/browse?availability=AVAILABLE_FOR_RENT',
   },
   {
-    id: '2',
-    title: 'Vintage Floral Dress',
-    brand: 'Reformation',
-    price: '$18/day',
-    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=500&fit=crop',
-    condition: 'Good',
+    id: 'shop',
+    title: 'SHOP PRELOVED',
+    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=600&fit=crop',
+    link: '/browse?availability=AVAILABLE_FOR_SALE',
   },
   {
-    id: '3',
-    title: 'Premium Sneakers',
-    brand: 'Nike',
-    price: '$12/day',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop',
-    condition: 'New',
+    id: 'sell',
+    title: 'SELL WITH US',
+    image: 'https://imgs.search.brave.com/lVBcto-jIDocZYBsH04apgKFvY2VNRedqoLG3s_J6Bs/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcu/ZnJlZXBpay5jb20v/cHJlbWl1bS1waG90/by9zdG9jay1tYXJr/ZXQtdHJhZGluZy1k/aWNlLWJ1eS1zZWxs/LWNvbmNlcHRfMTI4/NDkzNS01NTUyLmpw/Zz9zZW10PWFpc19o/eWJyaWQmdz03NDAm/cT04MA',
+    link: '/dashboard/wardrobe',
   },
   {
-    id: '4',
-    title: 'Luxury Handbag',
-    brand: 'Coach',
-    price: '$30/day',
-    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&h=500&fit=crop',
-    condition: 'Like New',
+    id: 'bags',
+    title: 'BAGS & ACCESSORIES',
+    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&h=600&fit=crop',
+    link: '/browse?category=accessories',
   },
 ];
 
 export default function LandingPage() {
+  const [trendingItems, setTrendingItems] = useState<WardrobeItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTrendingItems = async () => {
+      try {
+        const response = await wardrobeApi.getMarketplaceItems();
+        // Get first 4 items for trending section
+        setTrendingItems(response.data.slice(0, 4));
+      } catch (error) {
+        console.error('Failed to fetch trending items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrendingItems();
+  }, []);
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
       <section className="relative overflow-hidden gradient-hero">
         <div className="gradient-mesh absolute inset-0 opacity-60" />
 
-        <div className="container relative mx-auto px-4 py-20 lg:py-32">
+        <div className="container relative mx-auto px-4 py-12 lg:py-20">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             {/* Hero Content */}
             <div className="animate-slide-up">
@@ -121,7 +139,7 @@ export default function LandingPage() {
                       <Star key={i} className="h-4 w-4 fill-warning text-warning" />
                     ))}
                   </div>
-                  <p className="text-sm text-muted-foreground">50,000+ happy users</p>
+                  <p className="text-sm text-muted-foreground">Happy users</p>
                 </div>
               </div>
             </div>
@@ -145,7 +163,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Earned this month</p>
-                    <p className="text-xl font-bold text-foreground">$1,240</p>
+                    <p className="text-xl font-bold text-foreground"></p>
                   </div>
                 </div>
               </div>
@@ -157,7 +175,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Items rented</p>
-                    <p className="text-xl font-bold text-foreground">2,847</p>
+                    <p className="text-xl font-bold text-foreground"></p>
                   </div>
                 </div>
               </div>
@@ -166,8 +184,128 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* One Wardrobe. Multiple Possibilities - Visual + Text Hybrid */}
+      <section className="py-16 lg:py-6 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+            {/* Left: Visual-heavy - Masonry Grid */}
+            <div className="relative">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Image 1 - Tall */}
+                <div className="space-y-4">
+                  <div className="relative overflow-hidden rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                    <img
+                      src="https://imgs.search.brave.com/eri6Rxzk-kiACINDQqLG29XhS-E_iht5juOm0fIneok/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS5nZXR0eWltYWdl/cy5jb20vaWQvMTIy/MjQ4Mjg2NS9waG90/by93b21hbi1yZW9y/Z2FuaXppbmctaGVy/LXdhcmRyb2JlLWlu/LWhlci1iZWRyb29t/LmpwZz9zPTYxMng2/MTImdz0wJms9MjAm/Yz0xa1ZkYlhGQUxy/SFNzeGV4NWV1blFr/YTAzNXZ3YW8yUDF5/SjVnejZnZS1ZPQ"
+                      alt="Organizing wardrobe"
+                      className="w-full h-80 object-cover"
+                    />
+                  </div>
+                  {/* Image 3 - Short */}
+                  <div className="relative overflow-hidden rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                    <img
+                      src="https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=300&fit=crop"
+                      alt="Sustainable fashion"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                </div>
+
+                {/* Image 2 & 4 - Staggered */}
+                <div className="space-y-4 pt-8">
+                  <div className="relative overflow-hidden rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                    <img
+                      src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=300&fit=crop"
+                      alt="Closet organization"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                    <img
+                      src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=500&fit=crop"
+                      alt="Fashion styling"
+                      className="w-full h-80 object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating badge */}
+              <div className="absolute -bottom-4 -right-4 bg-card rounded-2xl shadow-xl p-4 border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success-muted">
+                    <Shield className="h-6 w-6 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Verified Community</p>
+                    <p className="text-xs text-muted-foreground">Trusted & Safe</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Concise, structured text */}
+            <div>
+              <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
+                One Wardrobe.
+                <br />
+                <span className="gradient-text">Multiple Possibilities.</span>
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                Start by digitally organizing your personal wardrobe. No pressure to rent or sell.
+                Later, when you're ready, choose to share, earn, or exchange — on your terms.
+              </p>
+
+              <div className="mt-8 space-y-6">
+                {/* Point 1 */}
+                <div className="flex gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-muted">
+                    <Shirt className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Personal Wardrobe First</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Add your clothes, keep them private, track what you own — no selling required.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Point 2 */}
+                <div className="flex gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary-muted">
+                    <RefreshCw className="h-6 w-6 text-secondary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Smart Decisions Later</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Convert items to rent, sell, or exchange anytime. Your wardrobe, your rules.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Point 3 */}
+                <div className="flex gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-success-muted">
+                    <Users className="h-6 w-6 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Trusted Community</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Verified users, ratings, and accountability. Sustainable fashion made simple.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="mt-6 text-sm italic text-muted-foreground border-l-2 border-primary pl-4">
+                "Keep items private or make them available later — totally up to you. No subscription needed."
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
-      <section className="py-20 lg:py-28">
+      <section className="py-12 lg:py-15">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
@@ -201,8 +339,33 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Category Hero Sections */}
+      <section className="py-12 lg:py-15">
+        <div className="container mx-auto px-4">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
+              Explore Our Marketplace
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Discover endless possibilities for your wardrobe
+            </p>
+          </div>
+
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+            {categoryHeroSections.map((category) => (
+              <CategoryCard
+                key={category.id}
+                title={category.title}
+                image={category.image}
+                link={category.link}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Featured Items */}
-      <section className="bg-muted/50 py-20 lg:py-28">
+      <section className="bg-muted/50 py-12 lg:py-15">
         <div className="container mx-auto px-4">
           <div className="flex items-end justify-between">
             <div>
@@ -221,58 +384,31 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredItems.map((item) => (
-              <Link
-                key={item.id}
-                to={`/items/${item.id}`}
-                className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:shadow-lg hover:border-primary/30"
-              >
-                <div className="relative aspect-[3/4] overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute left-3 top-3">
-                    <span className="rounded-full bg-primary/90 px-3 py-1 text-xs font-medium text-primary-foreground backdrop-blur-sm">
-                      {item.condition}
-                    </span>
-                  </div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-square bg-muted rounded-2xl"></div>
+                  <div className="mt-4 h-4 bg-muted rounded w-3/4"></div>
+                  <div className="mt-2 h-4 bg-muted rounded w-1/2"></div>
                 </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">{item.brand}</p>
-                  <h3 className="mt-1 font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-lg font-bold text-foreground">{item.price}</p>
-                </div>
-              </Link>
-            ))}
+              ))
+            ) : trendingItems.length > 0 ? (
+              trendingItems.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-muted-foreground">No items available yet. Be the first to list!</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-20 lg:py-28">
-        <div className="container mx-auto px-4">
-          <div className="rounded-3xl gradient-bg p-12 lg:p-16">
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className="text-4xl font-extrabold text-primary-foreground lg:text-5xl">
-                    {stat.value}
-                  </p>
-                  <p className="mt-2 text-primary-foreground/80">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Trust Signals */}
-      <section className="border-t border-border bg-muted/30 py-20 lg:py-28">
+      <section className="border-t border-border bg-muted/30 py-12 lg:py-15">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
@@ -316,7 +452,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 lg:py-28">
+      <section className="py-12 lg:py-15">
         <div className="container mx-auto px-4">
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
             <div className="grid lg:grid-cols-2">

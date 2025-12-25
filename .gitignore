@@ -72,7 +72,7 @@ docker-compose.override.yml
 
 # Build artifacts
 *.tsbuildinfo
-
+uploads/
 # Package manager lock files (optional - uncomment if you want to ignore)
 # package-lock.json
 # yarn.lock

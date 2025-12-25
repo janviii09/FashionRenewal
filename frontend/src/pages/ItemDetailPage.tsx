@@ -27,6 +27,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { TrustScore } from '@/components/ui/trust-score';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
 import type { WardrobeItem } from '@/types';
 import type { DateRange } from 'react-day-picker';
 
@@ -104,6 +105,7 @@ export default function ItemDetailPage() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { isAuthenticated } = useAuthStore();
+    const { addItem: addToCart } = useCartStore();
 
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
@@ -157,18 +159,19 @@ export default function ItemDetailPage() {
             return;
         }
 
-        setIsSubmitting(true);
-
-        // Simulate API call with idempotency
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        toast({
-            title: 'Rental request sent!',
-            description: `Your request for ${item.title} has been sent to the owner.`,
+        // Add to cart
+        addToCart({
+            item,
+            type: 'rent',
+            dateRange: { from: dateRange.from, to: dateRange.to },
         });
 
-        setIsSubmitting(false);
-        navigate('/dashboard/orders');
+        toast({
+            title: 'Added to cart!',
+            description: `${item.title} has been added to your cart.`,
+        });
+
+        navigate('/cart');
     };
 
     const handleBuyNow = () => {
@@ -182,10 +185,19 @@ export default function ItemDetailPage() {
             return;
         }
 
-        toast({
-            title: 'Purchase initiated',
-            description: 'Redirecting to checkout...',
+        // Add to cart
+        addToCart({
+            item,
+            type: 'buy',
+            quantity: 1,
         });
+
+        toast({
+            title: 'Added to cart!',
+            description: `${item.title} has been added to your cart.`,
+        });
+
+        navigate('/cart');
     };
 
     return (
@@ -380,7 +392,7 @@ export default function ItemDetailPage() {
                                             ) : (
                                                 <>
                                                     <Check className="mr-2 h-4 w-4" />
-                                                    Request Rental
+                                                    Add to Cart
                                                 </>
                                             )}
                                         </Button>

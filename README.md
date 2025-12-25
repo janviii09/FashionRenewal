@@ -1,114 +1,294 @@
-# FashionRenewal - Monorepo Structure
+# FashionRenewal 👗
 
-This is a monorepo containing both the backend (NestJS) and frontend (Next.js) for the FashionRenewal marketplace.
+A sustainable fashion marketplace platform that enables users to rent, sell, and swap designer clothing. Built with modern web technologies and production-ready backend architecture.
+
+## 🌟 Features
+
+### Core Functionality
+- **Wardrobe Management** - Upload and manage your clothing items with detailed information
+- **Marketplace** - Browse and discover items available for rent, sale, or swap
+- **Rental System** - Rent designer pieces with flexible date-based booking
+- **Selling & Swapping** - List items for sale or swap with other users
+- **User Reviews** - Rate and review transactions to build trust
+- **Authentication** - Secure JWT-based authentication with email verification
+
+### Advanced Features
+- **Order State Machine** - Robust order lifecycle management with strict state transitions
+- **Validation System** - Item validation workflow for quality assurance
+- **Delivery Tracking** - Track shipments with status updates
+- **Subscription Plans** - Tiered subscription system with rental limits
+- **Trust Scores** - User reputation system based on transaction history
+- **Audit Logging** - Comprehensive audit trail for all critical actions
+- **Admin Dashboard** - Administrative tools for platform management
+- **Anti Double-Booking** - Date conflict detection for rental items
+- **Payment Integration** - Payment lifecycle modeling (gateway-ready)
+- **Dispute Resolution** - Built-in dispute management system
+
+## 🏗️ Architecture
+
+### Tech Stack
+
+**Frontend**
+- React 18 with TypeScript
+- Vite for fast development and building
+- React Router for navigation
+- Radix UI + Tailwind CSS for modern, accessible UI
+- Zustand for state management
+- React Hook Form + Zod for form validation
+- Axios for API communication
+
+**Backend**
+- NestJS framework with TypeScript
+- PostgreSQL database
+- Prisma ORM for type-safe database access
+- JWT authentication with Passport
+- Bcrypt for password hashing
+- Helmet for security headers
+- Rate limiting and throttling
 
 ## 📁 Project Structure
 
 ```
 FashionRenewal/
 ├── backend/              # NestJS Backend API
-│   ├── src/             # Backend source code
+│   ├── src/
+│   │   ├── auth/        # Authentication & JWT
+│   │   ├── users/       # User management
+│   │   ├── wardrobe/    # Item management
+│   │   ├── marketplace/ # Orders & transactions
+│   │   ├── review/      # Review system
+│   │   ├── validation/  # Item validation
+│   │   ├── delivery/    # Delivery tracking
+│   │   ├── subscription/# Subscription management
+│   │   └── recommendation/ # ML recommendations
 │   ├── prisma/          # Database schema & migrations
-│   ├── package.json     # Backend dependencies
-│   └── README.md        # Backend documentation
+│   └── package.json
 │
-├── frontend/            # Next.js Frontend (to be generated)
-│   ├── app/            # Next.js 14 App Router pages
-│   ├── components/     # React components
-│   ├── lib/            # Utilities, API client
-│   ├── public/         # Static assets
-│   ├── package.json    # Frontend dependencies
-│   └── README.md       # Frontend documentation
+├── frontend/            # React + Vite Frontend
+│   ├── src/
+│   │   ├── components/  # Reusable UI components
+│   │   ├── pages/       # Page components
+│   │   ├── stores/      # Zustand state stores
+│   │   ├── lib/         # Utilities & API client
+│   │   └── types/       # TypeScript type definitions
+│   └── package.json
 │
-├── docs/               # Shared documentation
-│   ├── FRONTEND_PROMPT.md
-│   └── SETUP_GUIDE.md
-│
-└── README.md          # Main project README (this file)
+└── README.md           # This file
 ```
 
-## 🚀 Quick Start
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- Docker Desktop (for PostgreSQL)
+- npm or yarn
 
 ### Backend Setup
-```bash
-cd backend
-npm install
-docker-compose up -d
-npx prisma migrate dev
-npm run start:dev
-```
-Backend runs on: **http://localhost:3000**
 
-### Frontend Setup (After Generation)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Frontend runs on: **http://localhost:3001**
+1. **Navigate to backend directory**
+   ```bash
+   cd backend
+   ```
 
-## 🔗 Connecting Frontend & Backend
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-The backend is already configured to accept requests from the frontend. No additional setup needed!
+3. **Start PostgreSQL with Docker**
+   ```bash
+   docker-compose up -d
+   ```
 
-## 📚 Documentation
+4. **Set up environment variables**
+   
+   Create a `.env` file in the `backend` directory:
+   ```env
+   DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/wardrobe_p2p"
+   JWT_SECRET="your-super-secret-jwt-key-change-this"
+   NODE_ENV="development"
+   ```
 
-- **Backend API**: See `backend/README.md`
-- **Frontend Guide**: See `frontend/README.md` (after generation)
-- **Setup Instructions**: See `docs/SETUP_GUIDE.md`
-- **Frontend Prompt**: See `docs/FRONTEND_PROMPT.md`
+5. **Run database migrations**
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   ```
 
-## 🛠 Development
+6. **Start the development server**
+   ```bash
+   npm run start:dev
+   ```
+
+   Backend runs on **http://localhost:3000**
+
+### Frontend Setup
+
+1. **Navigate to frontend directory**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+   Frontend runs on **http://localhost:5173**
+
+## 🔧 Development
 
 ### Running Both Servers
-```bash
-# Terminal 1 - Backend
-cd backend && npm run start:dev
 
-# Terminal 2 - Frontend
-cd frontend && npm run dev
+Open two terminal windows:
+
+**Terminal 1 - Backend**
+```bash
+cd backend
+npm run start:dev
+```
+
+**Terminal 2 - Frontend**
+```bash
+cd frontend
+npm run dev
 ```
 
 ### Database Management
+
 ```bash
-cd backend
-npx prisma studio  # Visual database editor
-npx prisma migrate dev --name migration_name  # Create migration
+# Open Prisma Studio (visual database editor)
+npx prisma studio
+
+# Create a new migration
+npx prisma migrate dev --name migration_name
+
+# Reset database (WARNING: deletes all data)
+npx prisma migrate reset
 ```
 
-## 📦 Deployment
+### Code Quality
 
-### Backend
-- **Platform**: Railway / Render / Heroku
-- **Database**: PostgreSQL (managed)
-- **URL**: `https://api.fashionrenewal.com`
+**Backend**
+```bash
+npm run lint        # Run ESLint
+npm run format      # Format with Prettier
+npm run test        # Run tests
+```
 
-### Frontend
-- **Platform**: Vercel (recommended for Next.js)
-- **URL**: `https://fashionrenewal.com`
+**Frontend**
+```bash
+npm run lint        # Run ESLint
+npm run build       # Build for production
+```
+
+## 📡 API Endpoints
+
+### Authentication
+- `POST /auth/login` - User login
+- `POST /users` - User registration
+- `POST /auth/verify-email` - Verify email address
+
+### Wardrobe
+- `GET /wardrobe` - Get user's wardrobe items
+- `POST /wardrobe` - Add new item
+- `PATCH /wardrobe/:id` - Update item
+- `DELETE /wardrobe/:id` - Delete item (soft delete)
+
+### Marketplace
+- `GET /marketplace` - Browse available items
+- `POST /marketplace/request` - Create rental/purchase order
+- `GET /marketplace/orders` - Get user's orders
+- `PATCH /marketplace/order/:id/status` - Update order status
+
+### Reviews
+- `POST /review` - Submit a review
+- `GET /review/user/:id` - Get user's reviews
+
+### Validation
+- `POST /validation` - Request item validation
+- `PATCH /validation/:id/approve` - Approve validation
+- `PATCH /validation/:id/reject` - Reject validation
+
+### Admin (Requires ADMIN role)
+- `GET /admin/actions` - View audit trail
+- `POST /admin/disputes/:id/force-close` - Force close dispute
+- `PATCH /admin/orders/:id/override-status` - Override order status
 
 ## 🔐 Environment Variables
 
 ### Backend (`backend/.env`)
-```
-DATABASE_URL="postgresql://..."
-JWT_SECRET="your-secret"
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/database"
+JWT_SECRET="your-secret-key"
 NODE_ENV="development"
 ```
 
-### Frontend (`frontend/.env.local`)
-```
-NEXT_PUBLIC_API_URL="http://localhost:3000"
+### Frontend (`frontend/.env`)
+```env
+VITE_API_URL="http://localhost:3000"
 ```
 
-## 📝 Next Steps
+## 🎯 Production Features
 
-1. ✅ Backend is ready and running
-2. ⏳ Generate frontend using `docs/FRONTEND_PROMPT.md`
-3. ⏳ Place generated frontend files in `frontend/` folder
-4. ⏳ Connect frontend to backend API
-5. ⏳ Deploy to production
+- ✅ **Order State Machine** - Strict order lifecycle with validated transitions
+- ✅ **Anti Double-Booking** - Date conflict detection for rentals
+- ✅ **Subscription Enforcement** - API guards for subscription limits
+- ✅ **Item Lifecycle Tracking** - Custody and condition monitoring
+- ✅ **Audit Logging** - Immutable audit trail for compliance
+- ✅ **Idempotency Keys** - Prevent duplicate order creation
+- ✅ **Payment Lifecycle** - Complete payment state management
+- ✅ **Soft Deletes** - Data recovery and compliance
+- ✅ **Admin Override System** - Administrative controls with logging
+- ✅ **SLA Timers** - Automatic order expiration and late return tracking
+- ✅ **Optimistic Locking** - Concurrency protection for critical operations
+- ✅ **Transactional Consistency** - ACID guarantees for order + payment operations
+
+## 📊 Database Schema
+
+The application uses PostgreSQL with Prisma ORM. Key models include:
+
+- **User** - User accounts with roles and trust scores
+- **WardrobeItem** - Clothing items with availability status
+- **Order** - Rental/sale/swap transactions
+- **Review** - User reviews and ratings
+- **Payment** - Payment tracking and lifecycle
+- **Validation** - Item validation workflow
+- **Delivery** - Shipment tracking
+- **Subscription** - Subscription plans and user subscriptions
+- **AuditLog** - System audit trail
+- **Dispute** - Dispute management
+
+## 🚢 Deployment
+
+### Backend Deployment
+Recommended platforms:
+- Railway
+- Render
+- Heroku
+- AWS/GCP/Azure
+
+Database: Managed PostgreSQL (e.g., Railway, Supabase, AWS RDS)
+
+### Frontend Deployment
+Recommended platforms:
+- Vercel (optimized for Vite)
+- Netlify
+- Cloudflare Pages
+
+## 🤝 Contributing
+
+This is a private project. For questions or issues, please contact the development team.
+
+## 📝 License
+
+UNLICENSED - Private project
 
 ---
 
-**Built with ❤️ using NestJS, PostgreSQL, Prisma, and Next.js**
+**Built with ❤️ using NestJS, React, PostgreSQL, and Prisma**

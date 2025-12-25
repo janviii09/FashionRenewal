@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { WardrobeItem } from '@/types';
 import { ItemAvailability } from '@/types';
+import { useWishlistStore } from '@/stores/wishlistStore';
 
 interface ItemCardProps {
   item: WardrobeItem;
@@ -15,6 +16,8 @@ interface ItemCardProps {
 }
 
 export function ItemCard({ item, className, showActions, onEdit, onDelete }: ItemCardProps) {
+  const { addItem, removeItem, isInWishlist } = useWishlistStore();
+  const isWishlisted = isInWishlist(item.id);
   const displayPrice = item.rentPricePerDay
     ? `$${item.rentPricePerDay}/day`
     : item.sellPrice
@@ -37,10 +40,10 @@ export function ItemCard({ item, className, showActions, onEdit, onDelete }: Ite
   };
 
   return (
-    <div className={cn('group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card transition-all duration-300 hover:shadow-lg hover:border-primary/30', className)}>
+    <div className={cn('group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300 hover:shadow-xl hover:border-primary/40 hover:-translate-y-1', className)}>
       <Link to={`/items/${item.id}`} className="flex flex-col flex-1">
         {/* Image */}
-        <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-muted">
           <img
             src={item.images[0] || '/placeholder.svg'}
             alt={item.title}

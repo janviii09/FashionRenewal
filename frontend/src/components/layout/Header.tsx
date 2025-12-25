@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { Menu, X, ShoppingBag, User } from 'lucide-react';
+import { Menu, X, ShoppingBag, User, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -14,6 +15,8 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const { isAuthenticated, user } = useAuthStore();
+  const { getItemCount } = useCartStore();
+  const cartItemCount = getItemCount();
   
   const isActive = (path: string) => location.pathname === path;
   const isHome = location.pathname === '/';
@@ -52,6 +55,18 @@ export function Header() {
 
         {/* Desktop Auth Buttons */}
         <div className="hidden items-center gap-3 md:flex">
+          {/* Cart Icon */}
+          <Link to="/cart" className="relative">
+            <Button variant="ghost" size="icon">
+              <ShoppingCart className="h-5 w-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {cartItemCount}
+                </span>
+              )}
+            </Button>
+          </Link>
+          
           {isAuthenticated ? (
             <Link to="/dashboard">
               <Button variant="ghost" size="sm" className="gap-2">
