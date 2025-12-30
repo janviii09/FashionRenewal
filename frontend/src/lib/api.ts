@@ -85,6 +85,16 @@ export const wardrobeApi = {
 
   getItem: (id: number) =>
     api.get<WardrobeItem>(`/wardrobe/${id}`),
+
+  // Get unique categories from marketplace items
+  getCategories: () =>
+    api.get<string[]>('/wardrobe/categories'),
+
+  // Get product recommendations
+  getRecommendations: (productId: number, limit?: number) =>
+    api.get<WardrobeItem[]>(`/wardrobe/recommendations`, { 
+      params: { productId, limit: limit || 12 } 
+    }),
 };
 
 // Orders API

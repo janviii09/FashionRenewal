@@ -1,11 +1,15 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { WardrobeService } from './wardrobe.service';
+import { RecommendationService } from './recommendation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ItemAvailability } from '@prisma/client';
 
 @Controller('wardrobe')
 export class WardrobeController {
-    constructor(private readonly wardrobeService: WardrobeService) { }
+    constructor(
+        private readonly wardrobeService: WardrobeService,
+        private readonly recommendationService: RecommendationService
+    ) { }
 
     /**
      * Create a wardrobe item

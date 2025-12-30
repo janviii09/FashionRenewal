@@ -7,6 +7,7 @@ import { PublicLayout, DashboardLayout } from "@/components/layout";
 import LandingPage from "@/pages/LandingPage";
 import BrowsePage from "@/pages/BrowsePage";
 import CartPage from "@/pages/CartPage";
+import DiscoverFashionPage from "@/pages/DiscoverFashionPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import ItemDetailPage from "@/pages/ItemDetailPage";
 import LoginPage from "@/pages/LoginPage";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/browse" element={<BrowsePage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/discover" element={<DiscoverFashionPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/items/:id" element={<ItemDetailPage />} />
             <Route path="/how-it-works" element={<Navigate to="/#how-it-works" replace />} />

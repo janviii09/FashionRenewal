@@ -28,6 +28,7 @@ import { TrustScore } from '@/components/ui/trust-score';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import { SimilarProducts } from '@/components/recommendations/SimilarProducts';
 import type { WardrobeItem } from '@/types';
 import type { DateRange } from 'react-day-picker';
 
@@ -452,6 +453,11 @@ export default function ItemDetailPage() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Similar Products Section */}
+            <div className="container mx-auto px-4">
+                <SimilarProducts productId={parseInt(id || '1', 10)} title="You May Also Like" />
             </div>
         </div>
     );

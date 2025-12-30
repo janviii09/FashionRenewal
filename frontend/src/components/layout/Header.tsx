@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { cn } from '@/lib/utils';
+import { CategorySidebar } from '@/components/navigation/CategorySidebar';
 
 const navLinks = [
   { href: '/browse', label: 'Browse' },
@@ -12,7 +13,10 @@ const navLinks = [
 ];
 
 export function Header() {
+  // Category sidebar will be added
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(false);
   const location = useLocation();
   const { isAuthenticated, user } = useAuthStore();
   const { getItemCount } = useCartStore();
@@ -22,6 +26,7 @@ export function Header() {
   const isHome = location.pathname === '/';
 
   return (
+    <>
     <header className={cn(
       "sticky top-0 z-50 w-full border-b border-border/40 backdrop-blur-xl transition-all duration-300",
       isHome ? "bg-background/80" : "bg-card/80"
@@ -93,7 +98,7 @@ export function Header() {
         {/* Mobile Menu Button */}
         <button
           className="flex h-10 w-10 items-center justify-center rounded-lg md:hidden hover:bg-muted"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          onClick={() => setIsCategorySidebarOpen(true)}
         >
           {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -144,5 +149,7 @@ export function Header() {
         </div>
       )}
     </header>
+    <CategorySidebar isOpen={isCategorySidebarOpen} onClose={() => setIsCategorySidebarOpen(false)} />
+    </>
   );
 }

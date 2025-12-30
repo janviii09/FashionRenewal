@@ -272,4 +272,25 @@ export class WardrobeService {
             data: { deletedAt: new Date() },
         });
     }
+
+    /**
+     * Get unique categories from all marketplace items
+     */
+    async getUniqueCategories(): Promise<string[]> {
+        const items = await this.prisma.wardrobeItem.findMany({
+            where: {
+                availability: {
+                    in: ['AVAILABLE_FOR_RENT', 'AVAILABLE_FOR_SALE', 'AVAILABLE_FOR_SWAP']
+                }
+            },
+            select: {
+                category: true
+            }
+        });
+
+        // Extract unique categories
+        const categories = [...new Set(items.map(item => item.category).filter(Boolean))];
+        return categories.sort();
+    }
+
 }

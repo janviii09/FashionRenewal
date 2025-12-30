@@ -49,7 +49,7 @@ export default function BrowsePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState<string>('');
   const [availability, setAvailability] = useState<ItemAvailability | ''>('');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 100]);
   const [showPreview, setShowPreview] = useState(true);
   const { toast } = useToast();
 
@@ -110,11 +110,11 @@ export default function BrowsePage() {
     setCategory('');
     setAvailability('');
     setSearchQuery('');
-    setPriceRange([0, 1000]);
+    setPriceRange([0, 100]);
     setShowPreview(true); // Show preview again when filters are cleared
   };
 
-  const hasActiveFilters = category || availability || priceRange[0] > 0 || priceRange[1] < 1000;
+  const hasActiveFilters = category || availability || priceRange[0] > 0 || priceRange[1] < 100;
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -151,9 +151,8 @@ export default function BrowsePage() {
         <Slider
           value={priceRange}
           onValueChange={setPriceRange}
-          min={0}
-          max={1000}
-          step={10}
+          max={100}
+          step={5}
         />
       </div>
 
@@ -172,7 +171,6 @@ export default function BrowsePage() {
       </div>
     );
   }
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -273,7 +271,7 @@ export default function BrowsePage() {
                   ))}
                 </div>
                 
-                {/* View All Button */}
+                {/* View All Button - shown when there are items */}
                 {items.length > 0 && (
                   <div className="mt-12 text-center">
                     <Link to="/discover">
@@ -285,6 +283,19 @@ export default function BrowsePage() {
                   </div>
                 )}
               </>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed py-20">
+                <Search className="h-16 w-16 text-muted-foreground/50" />
+                <h3 className="mt-6 text-xl font-semibold">No items found</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Try adjusting your filters or search terms
+                </p>
+                {hasActiveFilters && (
+                  <Button variant="outline" className="mt-6" onClick={clearFilters}>
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed py-20">
                 <Search className="h-16 w-16 text-muted-foreground/50" />
