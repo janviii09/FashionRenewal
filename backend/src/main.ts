@@ -23,7 +23,7 @@ async function bootstrap() {
         origin: allowedOrigins,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-session-id'],
     });
 
     // Global validation pipe with security options

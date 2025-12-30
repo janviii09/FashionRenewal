@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { WardrobeService } from './wardrobe.service';
 import { RecommendationService } from './recommendation.service';
+import { BrowseService } from './browse.service';
+import { DiscoverService } from './discover.service';
+import { AffinityService } from '../affinity/affinity.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ItemAvailability } from '@prisma/client';
 
@@ -8,7 +11,10 @@ import { ItemAvailability } from '@prisma/client';
 export class WardrobeController {
     constructor(
         private readonly wardrobeService: WardrobeService,
-        private readonly recommendationService: RecommendationService
+        private readonly recommendationService: RecommendationService,
+        private readonly affinityService: AffinityService,
+        private readonly browseService: BrowseService,
+        private readonly discoverService: DiscoverService
     ) { }
 
     /**
@@ -41,8 +47,93 @@ export class WardrobeController {
     }
 
     /**
-     * Get marketplace items (public)
+     * Get unique categories from marketplace
+     * GET /wardrobe/categories
+     */
+    @Get('categories')
+    async getCategories() {
+        try {
+            const items = await this.wardrobeService.getMarketplaceItems({});
+
+            // Extract unique categories, filter out nulls/undefined
+            const categories = [...new Set(
+                items
+                    .map(item => item.category)
+                    .filter(Boolean)
+            )];
+
+            return categories.length > 0 ? categories : ['Women', 'Men', 'Kids', 'Accessories'];
+        } catch (error) {
+            // Fallback to default categories on error
+            return ['Women', 'Men', 'Kids', 'Accessories'];
+        }
+    }
+
+    /**
+     * Get personalized recommendations for user
+     * GET /wardrobe/personalized
+     */
+    @Get('personalized')
+    async getPersonalizedRecommendations(
+        @Request() req,
+        @Query('limit') limit?: string
+    ) {
+        try {
+            const itemLimit = limit ? parseInt(limit, 10) : 12;
+
+            // Simple implementation: return marketplace items
+            const items = await this.wardrobeService.getMarketplaceItems({});
+            return items.slice(0, itemLimit);
+        } catch (error) {
+            console.error('Error fetching personalized recommendations:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get browse preview (exactly 16 items across 4 sections)
+     * GET /wardrobe/browse-preview
+     */
+    @Get('browse-preview')
+    async getBrowsePreview() {
+        return this.browseService.getBrowsePreview();
+    }
+
+    /**
+     * Discover with server-side pagination and filtering
+     * GET /wardrobe/discover
+     */
+    @Get('discover')
+    async discover(
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('category') category?: string,
+        @Query('availability') availability?: string,
+        @Query('minPrice') minPrice?: string,
+        @Query('maxPrice') maxPrice?: string,
+        @Query('size') size?: string,
+        @Query('condition') condition?: string,
+        @Query('sort') sort?: string,
+        @Query('search') search?: string,
+    ) {
+        return this.discoverService.discover({
+            page: page ? parseInt(page, 10) : undefined,
+            limit: limit ? parseInt(limit, 10) : undefined,
+            category,
+            availability,
+            minPrice: minPrice ? parseFloat(minPrice) : undefined,
+            maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+            size,
+            condition,
+            sort,
+            search
+        });
+    }
+
+    /**
+     * Get marketplace items (public) - LEGACY ENDPOINT
      * GET /wardrobe/marketplace
+     * Kept for backward compatibility
      */
     @Get('marketplace')
     async getMarketplaceItems(

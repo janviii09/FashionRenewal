@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -29,77 +29,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { SimilarProducts } from '@/components/recommendations/SimilarProducts';
+import { BecauseYouViewed } from '@/components/recommendations/BecauseYouViewed';
 import type { WardrobeItem } from '@/types';
 import type { DateRange } from 'react-day-picker';
 
-// Sample items for display (same as BrowsePage)
-const sampleItems: WardrobeItem[] = [
-    {
-        id: '1',
-        userId: 'u1',
-        title: 'Designer Leather Jacket',
-        description: 'Premium quality leather jacket in excellent condition. Perfect for fall and winter seasons. Features genuine leather, quilted lining, and classic moto styling. Fits true to size with a slim cut.',
-        brand: 'AllSaints',
-        category: 'JACKET',
-        size: 'M',
-        condition: 'LIKE_NEW',
-        images: [
-            'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=1000&fit=crop',
-            'https://images.unsplash.com/photo-1521223890158-f9f7c3d5d504?w=800&h=1000&fit=crop',
-            'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&h=1000&fit=crop',
-        ],
-        rentPricePerDay: 25,
-        sellPrice: 350,
-        isAvailableForRent: true,
-        isAvailableForSale: true,
-        isAvailableForSwap: false,
-        status: 'AVAILABLE',
-        views: 245,
-        favorites: 32,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    },
-    {
-        id: '2',
-        userId: 'u2',
-        title: 'Vintage Floral Dress',
-        description: 'Beautiful vintage dress perfect for special occasions.',
-        brand: 'Reformation',
-        category: 'DRESS',
-        size: 'S',
-        condition: 'GOOD',
-        images: ['https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=1000&fit=crop'],
-        rentPricePerDay: 18,
-        isAvailableForRent: true,
-        isAvailableForSale: false,
-        isAvailableForSwap: true,
-        status: 'AVAILABLE',
-        views: 189,
-        favorites: 28,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    },
-];
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 
-// Sample owner data
-const sampleOwners: Record<string, { name: string; avatar: string; location: string; trustScore: number; itemsListed: number; rentalsCompleted: number }> = {
-    'u1': {
-        name: 'Sarah Miller',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-        location: 'New York, NY',
-        trustScore: 4.9,
-        itemsListed: 24,
-        rentalsCompleted: 87,
-    },
-    'u2': {
-        name: 'Emma Wilson',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-        location: 'Los Angeles, CA',
-        trustScore: 4.7,
-        itemsListed: 15,
-        rentalsCompleted: 42,
-    },
-};
+// All item and owner data now fetched from API - no hardcoded data needed
+
 
 export default function ItemDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -113,8 +50,52 @@ export default function ItemDetailPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const item = useMemo(() => sampleItems.find((i) => i.id === id), [id]);
-    const owner = item ? sampleOwners[item.userId] : null;
+    // Fetch real item data from API
+    const [item, setItem] = useState<WardrobeItem | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { trackActivity } = useActivityTracker();
+
+    // Fetch item data
+    useEffect(() => {
+        const fetchItem = async () => {
+            if (!id) return;
+
+            try {
+                setLoading(true);
+                const response = await fetch(`http://localhost:3000/wardrobe/${id}`);
+                if (!response.ok) throw new Error('Item not found');
+
+                const data = await response.json();
+                setItem(data);
+
+                // Track view activity
+                trackActivity('VIEW', parseInt(id));
+            } catch (error) {
+                console.error('Error fetching item:', error);
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load item',
+                    variant: 'destructive',
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchItem();
+    }, [id, trackActivity, toast]);
+
+    // Owner data comes from API response
+    const owner = item?.owner || null;
+
+    if (loading) {
+        return (
+            <div className="flex min-h-[50vh] flex-col items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="mt-4 text-muted-foreground">Loading item...</p>
+            </div>
+        );
+    }
 
     if (!item) {
         return (
@@ -304,19 +285,19 @@ export default function ItemDetailPage() {
                         <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">{item.size}</Badge>
                             <StatusBadge status={item.condition} />
-                            {item.isAvailableForRent && (
+                            {(item.availability === 'AVAILABLE_FOR_RENT' || item.availability === 'AVAILABLE_FOR_BOTH') && (
                                 <Badge className="bg-success/10 text-success hover:bg-success/20">
                                     <Calendar className="mr-1 h-3 w-3" />
                                     For Rent
                                 </Badge>
                             )}
-                            {item.isAvailableForSale && (
+                            {(item.availability === 'AVAILABLE_FOR_SALE' || item.availability === 'AVAILABLE_FOR_BOTH') && (
                                 <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
                                     <ShoppingBag className="mr-1 h-3 w-3" />
                                     For Sale
                                 </Badge>
                             )}
-                            {item.isAvailableForSwap && (
+                            {item.availability === 'AVAILABLE_FOR_SWAP' && (
                                 <Badge className="bg-warning/10 text-warning hover:bg-warning/20">
                                     <RefreshCw className="mr-1 h-3 w-3" />
                                     For Swap
@@ -327,13 +308,13 @@ export default function ItemDetailPage() {
                         {/* Price */}
                         <div className="rounded-xl border border-border bg-card p-6">
                             <div className="flex items-baseline gap-4">
-                                {item.isAvailableForRent && item.rentPricePerDay && (
+                                {(item.availability === 'AVAILABLE_FOR_RENT') && item.rentPricePerDay && (
                                     <div>
                                         <span className="text-3xl font-bold text-foreground">${item.rentPricePerDay}</span>
                                         <span className="text-muted-foreground">/day</span>
                                     </div>
                                 )}
-                                {item.isAvailableForSale && item.sellPrice && (
+                                {(item.availability === 'AVAILABLE_FOR_SALE') && item.sellPrice && (
                                     <div className="text-muted-foreground">
                                         or <span className="font-semibold text-foreground">${item.sellPrice}</span> to buy
                                     </div>
@@ -342,7 +323,7 @@ export default function ItemDetailPage() {
                         </div>
 
                         {/* Rental Date Picker */}
-                        {item.isAvailableForRent && (
+                        {item.availability === 'AVAILABLE_FOR_RENT' && (
                             <div className="space-y-4 rounded-xl border border-border bg-card p-6">
                                 <h3 className="font-semibold text-foreground">Select Rental Dates</h3>
                                 <Popover>
@@ -454,6 +435,12 @@ export default function ItemDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Personalized Recommendations */}
+            <BecauseYouViewed
+                currentItemId={parseInt(id || '1', 10)}
+                currentItemCategory={item?.category}
+            />
 
             {/* Similar Products Section */}
             <div className="container mx-auto px-4">

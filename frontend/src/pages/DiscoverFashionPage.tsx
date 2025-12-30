@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Filter, X } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ItemGrid } from '@/components/items/ItemGrid';
 import { FilterSidebar, FilterState } from '@/components/filters/FilterSidebar';
@@ -12,6 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 
 const ITEMS_PER_PAGE = 24;
 
+interface DiscoverResponse {
+    items: WardrobeItem[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrev: boolean;
+    };
+}
+
 export default function DiscoverFashionPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { toast } = useToast();
@@ -19,87 +31,118 @@ export default function DiscoverFashionPage() {
     // State
     const [items, setItems] = useState<WardrobeItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: ITEMS_PER_PAGE,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false
+    });
     const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-    const [filters, setFilters] = useState<FilterState>({
-        category: '',
-        availability: '',
-        minPrice: 0,
-        maxPrice: 1000,
-        sizes: [],
-        conditions: [],
+    // Initialize filters from URL or localStorage
+    const [filters, setFilters] = useState<FilterState>(() => {
+        // Try URL first
+        const category = searchParams.get('category');
+        const availability = searchParams.get('availability');
+        const minPrice = searchParams.get('minPrice');
+        const maxPrice = searchParams.get('maxPrice');
+        const size = searchParams.get('size');
+        const condition = searchParams.get('condition');
+
+        if (category || availability || minPrice || maxPrice || size || condition) {
+            return {
+                category: category || '',
+                availability: availability || '',
+                minPrice: minPrice ? Number(minPrice) : 0,
+                maxPrice: maxPrice ? Number(maxPrice) : 1000,
+                sizes: size ? [size] : [],
+                conditions: condition ? [condition] : [],
+            };
+        }
+
+        // Try localStorage
+        const stored = localStorage.getItem('discover_filters');
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {
+                console.error('Failed to parse stored filters:', e);
+            }
+        }
+
+        // Defaults
+        return {
+            category: '',
+            availability: '',
+            minPrice: 0,
+            maxPrice: 1000,
+            sizes: [],
+            conditions: [],
+        };
     });
 
-    const [sortOption, setSortOption] = useState<SortOption>(sortOptions[0]);
+    // Initialize sort from URL
+    const [sortOption, setSortOption] = useState<SortOption>(() => {
+        const sortParam = searchParams.get('sort');
+        return sortOptions.find(opt => opt.field === sortParam) || sortOptions[0];
+    });
 
-    // Read URL parameters on mount
-    useEffect(() => {
-        const category = searchParams.get('category');
-        const page = searchParams.get('page');
-
-        if (category) {
-            setFilters(prev => ({ ...prev, category }));
-        }
-        if (page) {
-            setCurrentPage(Number(page));
-        }
-    }, []);
+    // Initialize page from URL
+    const [currentPage, setCurrentPage] = useState(() => {
+        const pageParam = searchParams.get('page');
+        return pageParam ? Number(pageParam) : 1;
+    });
 
     // Fetch items when filters/sort/page change
     useEffect(() => {
         fetchItems();
     }, [filters, sortOption, currentPage]);
 
+    // Sync to URL and localStorage
+    useEffect(() => {
+        const params = new URLSearchParams();
+
+        // Add filters to URL
+        if (filters.category) params.set('category', filters.category);
+        if (filters.availability) params.set('availability', filters.availability);
+        if (filters.minPrice > 0) params.set('minPrice', String(filters.minPrice));
+        if (filters.maxPrice < 1000) params.set('maxPrice', String(filters.maxPrice));
+        if (filters.sizes.length > 0) params.set('size', filters.sizes[0]);
+        if (filters.conditions.length > 0) params.set('condition', filters.conditions[0]);
+
+        // Add sort to URL
+        if (sortOption.field !== 'createdAt') params.set('sort', sortOption.field);
+
+        // Add page to URL
+        if (currentPage > 1) params.set('page', String(currentPage));
+
+        setSearchParams(params, { replace: true });
+
+        // Save to localStorage
+        localStorage.setItem('discover_filters', JSON.stringify(filters));
+    }, [filters, sortOption, currentPage]);
+
     const fetchItems = async () => {
         try {
             setLoading(true);
 
-            // Build API filters
-            const apiFilters: any = {
+            const response = await wardrobeApi.discover({
+                page: currentPage,
+                limit: ITEMS_PER_PAGE,
                 category: filters.category || undefined,
                 availability: filters.availability || undefined,
-                minPrice: filters.minPrice,
-                maxPrice: filters.maxPrice,
-            };
-
-            const response = await wardrobeApi.getMarketplaceItems(apiFilters);
-
-            // Client-side filtering for size and condition (if backend doesn't support)
-            let filteredItems = response.data;
-
-            if (filters.sizes.length > 0) {
-                filteredItems = filteredItems.filter(item =>
-                    filters.sizes.includes(item.size || '')
-                );
-            }
-
-            if (filters.conditions.length > 0) {
-                filteredItems = filteredItems.filter(item =>
-                    filters.conditions.includes(item.condition)
-                );
-            }
-
-            // Client-side sorting
-            const sortedItems = [...filteredItems].sort((a, b) => {
-                const aValue = a[sortOption.field as keyof WardrobeItem] || 0;
-                const bValue = b[sortOption.field as keyof WardrobeItem] || 0;
-
-                if (sortOption.order === 'asc') {
-                    return aValue > bValue ? 1 : -1;
-                } else {
-                    return aValue < bValue ? 1 : -1;
-                }
+                minPrice: filters.minPrice > 0 ? filters.minPrice : undefined,
+                maxPrice: filters.maxPrice < 1000 ? filters.maxPrice : undefined,
+                size: filters.sizes[0] || undefined,
+                condition: filters.conditions[0] || undefined,
+                sort: sortOption.field || 'latest' // Use field property from SortOption
             });
 
-            // Client-side pagination
-            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const paginatedItems = sortedItems.slice(startIndex, endIndex);
-
-            setItems(paginatedItems);
-            setTotalCount(sortedItems.length);
+            const data = response.data as DiscoverResponse;
+            setItems(data.items);
+            setPagination(data.pagination);
         } catch (error: any) {
             console.error('Error fetching items:', error);
             toast({
@@ -114,28 +157,21 @@ export default function DiscoverFashionPage() {
 
     const handleFilterChange = (newFilters: FilterState) => {
         setFilters(newFilters);
-        setCurrentPage(1); // Reset to first page
-
-        // Update URL
-        const params: any = {};
-        if (newFilters.category) params.category = newFilters.category;
-        if (newFilters.availability) params.availability = newFilters.availability;
-        setSearchParams(params);
+        setCurrentPage(1); // Reset to first page when filters change
     };
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Update URL
-        const params = Object.fromEntries(searchParams);
-        params.page = String(page);
-        setSearchParams(params);
     };
 
-    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    const handleSortChange = (newSort: SortOption) => {
+        setSortOption(newSort);
+        setCurrentPage(1); // Reset to first page when sort changes
+    };
+
     const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1;
-    const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
+    const endItem = Math.min(currentPage * ITEMS_PER_PAGE, pagination.total);
 
     return (
         <div className="min-h-screen bg-background">
@@ -148,6 +184,10 @@ export default function DiscoverFashionPage() {
                             Home
                         </Link>
                         <span>/</span>
+                        <Link to="/browse" className="hover:text-foreground transition-colors">
+                            Browse
+                        </Link>
+                        <span>/</span>
                         <span className="text-foreground font-medium">Discover Fashion</span>
                     </nav>
 
@@ -156,7 +196,7 @@ export default function DiscoverFashionPage() {
                         <div>
                             <h1 className="text-3xl font-bold text-foreground">Discover Fashion</h1>
                             <p className="mt-2 text-muted-foreground">
-                                Explore our complete collection of fashion items
+                                Explore our complete collection with advanced filters
                             </p>
                         </div>
 
@@ -181,7 +221,7 @@ export default function DiscoverFashionPage() {
                         <FilterSidebar
                             filters={filters}
                             onFilterChange={handleFilterChange}
-                            itemCount={totalCount}
+                            itemCount={pagination.total}
                         />
                     </div>
 
@@ -196,7 +236,7 @@ export default function DiscoverFashionPage() {
                                 <FilterSidebar
                                     filters={filters}
                                     onFilterChange={handleFilterChange}
-                                    itemCount={totalCount}
+                                    itemCount={pagination.total}
                                     onClose={() => setShowMobileFilters(false)}
                                 />
                             </div>
@@ -210,13 +250,13 @@ export default function DiscoverFashionPage() {
                             <p className="text-sm text-muted-foreground">
                                 {loading ? (
                                     'Loading...'
-                                ) : totalCount > 0 ? (
-                                    `Showing ${startItem}-${endItem} of ${totalCount} items`
+                                ) : pagination.total > 0 ? (
+                                    `Showing ${startItem}-${endItem} of ${pagination.total} items`
                                 ) : (
                                     'No items found'
                                 )}
                             </p>
-                            <SortDropdown value={sortOption} onChange={setSortOption} />
+                            <SortDropdown value={sortOption} onChange={handleSortChange} />
                         </div>
 
                         {/* Items */}
@@ -227,13 +267,24 @@ export default function DiscoverFashionPage() {
                         />
 
                         {/* Pagination */}
-                        {!loading && totalPages > 1 && (
+                        {!loading && pagination.totalPages > 1 && (
                             <div className="mt-12">
                                 <Pagination
                                     currentPage={currentPage}
-                                    totalPages={totalPages}
+                                    totalPages={pagination.totalPages}
                                     onPageChange={handlePageChange}
                                 />
+                            </div>
+                        )}
+
+                        {/* Back to Browse CTA */}
+                        {!loading && pagination.total === 0 && (
+                            <div className="mt-12 text-center">
+                                <Link to="/browse">
+                                    <Button variant="outline" size="lg">
+                                        ← Back to Browse
+                                    </Button>
+                                </Link>
                             </div>
                         )}
                     </div>

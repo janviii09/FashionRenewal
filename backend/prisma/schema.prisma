@@ -33,6 +33,11 @@ model User {
   adminActions         AdminOverrideLog[] @relation("AdminActions")
   validatorAssignments Validation[]       @relation("ValidatorAssignments")
 
+  // User activity tracking relations
+  activities     UserActivity[]   @relation("UserActivities")
+  affinity       UserAffinity?    @relation("UserAffinities")
+  recentlyViewed RecentlyViewed[] @relation("RecentlyViewedByUser")
+
   @@index([email])
   @@index([deletedAt])
 }
@@ -63,6 +68,13 @@ model WardrobeItem {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  // NEW: Trending and sorting fields for Browse/Discover optimization
+  trendingScore Float     @default(0) // Computed score for trending items
+  rentalCount   Int       @default(0) // Number of times rented
+  purchaseCount Int       @default(0) // Number of times purchased
+  wishlistCount Int       @default(0) // Number of times added to wishlist
+  lastRentedAt  DateTime? // Last rental date
+
   // Custody tracking
   currentHolderId  Int?
   currentHolder    User?     @relation("CurrentHolder", fields: [currentHolderId], references: [id])
@@ -74,10 +86,21 @@ model WardrobeItem {
   conditionHistory ItemConditionHistory[]
   validations      Validation[]
 
+  // Activity tracking relations
+  activities     UserActivity[]   @relation("ItemActivities")
+  recentlyViewed RecentlyViewed[] @relation("RecentlyViewedItems")
+
   @@index([ownerId])
   @@index([availability]) // For marketplace queries
   @@index([currentHolderId])
   @@index([deletedAt])
+  // NEW: Performance indexes for Browse/Discover
+  @@index([trendingScore])
+  @@index([rentalCount])
+  @@index([createdAt])
+  @@index([category, availability])
+  @@index([rentPricePerDay])
+  @@index([sellPrice])
 }
 
 enum ItemAvailability {
@@ -394,4 +417,81 @@ enum FeedbackAction {
   ACCEPTED
   IGNORED
   DISMISSED
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USER ACTIVITY TRACKING & RECOMMENDATIONS
+// ═══════════════════════════════════════════════════════════════
+
+model UserActivity {
+  id        String       @id @default(cuid())
+  userId    Int? // Nullable for guest users
+  sessionId String? // For guest tracking
+  eventType ActivityType
+  itemId    Int?
+  category  String?
+  metadata  Json? // Flexible for future events
+  createdAt DateTime     @default(now())
+
+  // Relations
+  user User?         @relation("UserActivities", fields: [userId], references: [id])
+  item WardrobeItem? @relation("ItemActivities", fields: [itemId], references: [id])
+
+  // Indexes for performance
+  @@index([userId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([itemId])
+}
+
+enum ActivityType {
+  VIEW // Product page view
+  CLICK // Item card click
+  WISHLIST_ADD
+  WISHLIST_REMOVE
+  CART_ADD
+  CART_REMOVE
+  RENTAL_COMPLETE
+  PURCHASE_COMPLETE
+  SEARCH // Optional
+}
+
+model UserAffinity {
+  id     String @id @default(cuid())
+  userId Int    @unique
+
+  // Category preferences (JSON for flexibility)
+  categoryScores  Json @default("{}") // { "Women": 85, "Men": 15, ... }
+  brandScores     Json @default("{}") // { "Fabindia": 90, "Zara": 70, ... }
+  priceRangePrefs Json @default("{}") // { "min": 500, "max": 2000, "avg": 1200 }
+
+  // Behavioral signals
+  avgViewDuration Int? // Seconds
+  conversionRate  Float? // Purchases / Views
+
+  // Metadata
+  lastComputed    DateTime @default(now())
+  totalActivities Int      @default(0)
+
+  // Relations
+  user User @relation("UserAffinities", fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model RecentlyViewed {
+  id        String   @id @default(cuid())
+  userId    Int?
+  sessionId String?
+  itemId    Int
+  viewedAt  DateTime @default(now())
+
+  // Relations
+  user User?        @relation("RecentlyViewedByUser", fields: [userId], references: [id])
+  item WardrobeItem @relation("RecentlyViewedItems", fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+  @@unique([sessionId, itemId])
+  @@index([userId, viewedAt])
+  @@index([sessionId, viewedAt])
 }

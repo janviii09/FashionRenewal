@@ -18,8 +18,16 @@ import { ReviewModule } from './review/review.module';
 import { ValidationModule } from './validation/validation.module';
 import { DeliveryModule } from './delivery/delivery.module';
 
+import { ActivityModule } from './activity/activity.module';
+
+import { AffinityModule } from './affinity/affinity.module';
+import { ScheduleModule } from '@nestjs/schedule';
+
 @Module({
     imports: [
+    ScheduleModule.forRoot(),
+    AffinityModule,
+    ActivityModule,
         // Rate limiting: 10 requests per minute per IP
         ThrottlerModule.forRoot([{
             ttl: 60000, // 1 minute

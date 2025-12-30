@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CategoryCard } from '@/components/marketplace/CategoryCard';
 import { ItemCard } from '@/components/items/ItemCard';
 import { wardrobeApi } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 import type { WardrobeItem } from '@/types';
 import heroImage from '@/assests/hero-fashion.jpg';
 
@@ -67,6 +68,7 @@ const categoryHeroSections = [
 export default function LandingPage() {
   const [trendingItems, setTrendingItems] = useState<WardrobeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     const fetchTrendingItems = async () => {
@@ -452,34 +454,37 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-12 lg:py-15">
-        <div className="container mx-auto px-4">
-          <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
-            <div className="grid lg:grid-cols-2">
-              <div className="p-12 lg:p-16">
-                <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
-                  Ready to Transform Your Wardrobe?
-                </h2>
-                <p className="mt-4 text-lg text-muted-foreground">
-                  Join thousands of fashion lovers who are earning from their closets and accessing designer pieces at a fraction of the cost.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-4">
-                  <Link to="/signup">
-                    <Button variant="gradient" size="lg">
-                      Create Free Account
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
+      {/* CTA Section - Only show if not logged in */}
+      {!isAuthenticated && (
+        <section className="py-12 lg:py-15">
+          <div className="container mx-auto px-4">
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+              <div className="grid lg:grid-cols-2">
+                <div className="p-12 lg:p-16">
+                  <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
+                    Ready to Transform Your Wardrobe?
+                  </h2>
+                  <p className="mt-4 text-lg text-muted-foreground">
+                    Join thousands of fashion lovers who are earning from their closets and accessing designer pieces at a fraction of the cost.
+                  </p>
+                  <div className="mt-8 flex flex-wrap gap-4">
+                    <Link to="/signup">
+                      <Button variant="gradient" size="lg">
+                        Get Started
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-              <div className="relative hidden lg:block">
-                <div className="absolute inset-0 gradient-mesh opacity-80" />
-                <div className="absolute inset-0 bg-gradient-to-l from-transparent to-card" />
+                <div className="relative hidden lg:block">
+                  <div className="absolute inset-0 gradient-mesh opacity-80" />
+                  <div className="absolute inset-0 bg-gradient-to-l from-transparent to-card" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

@@ -92,9 +92,28 @@ export const wardrobeApi = {
 
   // Get product recommendations
   getRecommendations: (productId: number, limit?: number) =>
-    api.get<WardrobeItem[]>(`/wardrobe/recommendations`, { 
-      params: { productId, limit: limit || 12 } 
+    api.get<WardrobeItem[]>(`/wardrobe/recommendations`, {
+      params: { productId, limit: limit || 12 }
     }),
+
+  // NEW: Browse preview (exactly 16 items)
+  getBrowsePreview: () =>
+    api.get('/wardrobe/browse-preview'),
+
+  // NEW: Discover with server-side pagination and filtering
+  discover: (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    availability?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    size?: string;
+    condition?: string;
+    sort?: string;
+    search?: string;
+  }) =>
+    api.get('/wardrobe/discover', { params }),
 };
 
 // Orders API

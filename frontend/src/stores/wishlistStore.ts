@@ -10,6 +10,32 @@ interface WishlistStore {
     clearWishlist: () => void;
 }
 
+
+// Helper to track wishlist events
+const trackWishlistEvent = (eventType: 'WISHLIST_ADD' | 'WISHLIST_REMOVE', itemId: string) => {
+  try {
+    const sessionId = sessionStorage.getItem('session_id') || 
+      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem('session_id', sessionId);
+    
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/activity/track`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-session-id': sessionId,
+      },
+      body: JSON.stringify({
+        eventType,
+        itemId: parseInt(itemId, 10),
+        timestamp: Date.now(),
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch (error) {
+    // Silent fail
+  }
+};
+
 export const useWishlistStore = create<WishlistStore>()(
     persist(
         (set, get) => ({
