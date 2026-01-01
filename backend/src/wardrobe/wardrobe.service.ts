@@ -1,49 +1,56 @@
-import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WardrobeItem, ItemAvailability, Prisma } from '@prisma/client';
-
-interface CreateItemDto {
-    title: string;
-    description?: string;
-    category: string;
-    brand?: string;
-    size?: string;
-    condition: string;
-    images?: string[];
-    // Availability is optional - defaults to PERSONAL_ONLY
-    availability?: ItemAvailability;
-    rentPricePerDay?: number;
-    sellPrice?: number;
-}
-
-interface UpdateItemDto {
-    title?: string;
-    description?: string;
-    category?: string;
-    brand?: string;
-    size?: string;
-    condition?: string;
-    images?: string[];
-    availability?: ItemAvailability;
-    rentPricePerDay?: number;
-    sellPrice?: number;
-}
+import { CreateItemDto } from './dto/create-item.dto';
+import { UpdateItemDto } from './dto/update-item.dto';
 
 @Injectable()
 export class WardrobeService {
+    private readonly logger = new Logger(WardrobeService.name);
+
     constructor(private prisma: PrismaService) { }
+
+    /**
+     * Validate image requirements based on availability type
+     * RULE: 4+ images required for RENT, SELL, SWAP
+     * RULE: PERSONAL_ONLY can have any number (0+)
+     */
+    private validateImageRequirement(availability: ItemAvailability, images?: string[]): void {
+        const marketplaceTypes: ItemAvailability[] = [
+            ItemAvailability.AVAILABLE_FOR_RENT,
+            ItemAvailability.AVAILABLE_FOR_SALE,
+            ItemAvailability.AVAILABLE_FOR_SWAP,
+        ];
+
+        const requiresMinImages = marketplaceTypes.includes(availability);
+
+        if (requiresMinImages) {
+            if (!images || images.length < 4) {
+                throw new BadRequestException(
+                    'At least 4 images are required for rent, sell, or exchange listings'
+                );
+            }
+        }
+    }
 
     /**
      * Create a wardrobe item
      * RULE: Defaults to PERSONAL_ONLY
      * RULE: No subscription required
+     * RULE: 4+ images for marketplace listings
      */
     async createItem(userId: number, data: CreateItemDto): Promise<WardrobeItem> {
+        // Determine final availability (default to PERSONAL_ONLY)
+        const availability = data.availability || ItemAvailability.PERSONAL_ONLY;
+
+        // VALIDATE: 4-image requirement for marketplace listings
+        this.validateImageRequirement(availability, data.images);
+
         // Validate pricing based on availability
-        if (data.availability === ItemAvailability.AVAILABLE_FOR_RENT && !data.rentPricePerDay) {
+        if (availability === ItemAvailability.AVAILABLE_FOR_RENT && !data.rentPricePerDay) {
             throw new BadRequestException('Rent price required for rentable items');
         }
-        if (data.availability === ItemAvailability.AVAILABLE_FOR_SALE && !data.sellPrice) {
+        if (availability === ItemAvailability.AVAILABLE_FOR_SALE && !data.sellPrice) {
             throw new BadRequestException('Sell price required for items for sale');
         }
 
@@ -60,7 +67,7 @@ export class WardrobeService {
                 rentPricePerDay: data.rentPricePerDay,
                 sellPrice: data.sellPrice,
                 // CRITICAL: Default to PERSONAL_ONLY if not specified
-                availability: data.availability || ItemAvailability.PERSONAL_ONLY,
+                availability,
             },
         });
     }
@@ -180,6 +187,11 @@ export class WardrobeService {
      * RULE: Personal items only visible to owner
      */
     async getItem(itemId: number, requestingUserId?: number): Promise<WardrobeItem> {
+        // Defensive guard: prevent NaN or invalid IDs from reaching Prisma
+        if (!itemId || isNaN(itemId) || itemId <= 0) {
+            throw new NotFoundException('Invalid item ID');
+        }
+
         const item = await this.prisma.wardrobeItem.findUnique({
             where: { id: itemId },
             include: {
@@ -211,6 +223,7 @@ export class WardrobeService {
     /**
      * Update a wardrobe item
      * RULE: Only owner can update
+     * RULE: Must re-validate images if changing to marketplace availability
      */
     async updateItem(
         itemId: number,
@@ -228,6 +241,12 @@ export class WardrobeService {
         // GUARD: Only owner can update
         if (item.ownerId !== userId) {
             throw new ForbiddenException('You can only update your own items');
+        }
+
+        // If availability is being changed, validate images
+        if (data.availability) {
+            const finalImages = data.images !== undefined ? data.images : item.images;
+            this.validateImageRequirement(data.availability, finalImages);
         }
 
         // Validate pricing if availability changes

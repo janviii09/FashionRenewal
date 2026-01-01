@@ -21,6 +21,16 @@ model User {
   updatedAt              DateTime  @updatedAt
   deletedAt              DateTime?
 
+  // Verification status (denormalized for performance)
+  phoneVerified Boolean @default(false)
+  idVerified    Boolean @default(false)
+  trustedLender Boolean @default(false)
+
+  // Risk flags
+  disputeRiskScore Decimal?  @db.Decimal(3, 2)
+  flaggedAt        DateTime?
+  flagReason       String?
+
   wardrobeItems        WardrobeItem[]
   rentOrders           Order[]            @relation("RenterOrders")
   ownerOrders          Order[]            @relation("OwnerOrders")
@@ -37,6 +47,19 @@ model User {
   activities     UserActivity[]   @relation("UserActivities")
   affinity       UserAffinity?    @relation("UserAffinities")
   recentlyViewed RecentlyViewed[] @relation("RecentlyViewedByUser")
+
+  // Dispute relations
+  disputesRaised   Dispute[]         @relation("DisputesRaised")
+  disputesAgainst  Dispute[]         @relation("DisputesAgainst")
+  disputesResolved Dispute[]         @relation("DisputesResolved")
+  disputeEvidence  DisputeEvidence[] @relation("DisputeEvidenceUploads")
+  disputeResponses DisputeResponse[] @relation("DisputeResponses")
+  disputeTimeline  DisputeTimeline[] @relation("DisputeTimelineActor")
+
+  // Verification relations
+  verifications         UserVerification[]    @relation("UserVerifications")
+  verificationsReviewed UserVerification[]    @relation("VerificationsReviewed")
+  trustedLenderMetrics  TrustedLenderMetrics? @relation("TrustedLenderMetrics")
 
   @@index([email])
   @@index([deletedAt])
@@ -149,8 +172,13 @@ model Order {
   // Validation gate
   requiresValidation Boolean @default(false)
 
+  // Dispute tracking
+  hasActiveDispute Boolean   @default(false)
+  disputeCount     Int       @default(0)
+  disputeLockedAt  DateTime?
+
   reviews          Review[]
-  disputes         Dispute[]
+  orderDisputes    Dispute[]              @relation("OrderDisputes")
   conditionHistory ItemConditionHistory[]
   payments         Payment[]
   validation       Validation?
@@ -327,27 +355,7 @@ model UserSubscription {
   @@index([userId])
 }
 
-model Dispute {
-  id         Int           @id @default(autoincrement())
-  orderId    Int
-  order      Order         @relation(fields: [orderId], references: [id])
-  raisedById Int
-  raisedBy   User          @relation(fields: [raisedById], references: [id])
-  reason     String
-  status     DisputeStatus @default(OPEN)
-  resolution String?
-  createdAt  DateTime      @default(now())
-  resolvedAt DateTime?
-
-  @@index([orderId])
-}
-
-enum DisputeStatus {
-  OPEN
-  INVESTIGATING
-  RESOLVED
-  CLOSED
-}
+// Old Dispute model removed - replaced with comprehensive version below
 
 enum Role {
   USER
@@ -494,4 +502,238 @@ model RecentlyViewed {
   @@unique([sessionId, itemId])
   @@index([userId, viewedAt])
   @@index([sessionId, viewedAt])
+}
+
+// ============================================
+// TRUST & SAFETY SYSTEMS
+// ============================================
+
+// Dispute Resolution System
+enum DisputeReason {
+  ITEM_NOT_AS_DESCRIBED
+  ITEM_DAMAGED
+  LATE_DELIVERY
+  PAYMENT_ISSUE
+  HARASSMENT
+  FRAUD
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN // Initial state
+  RESPONDED // Counterparty responded
+  UNDER_REVIEW // Admin reviewing
+  RESOLVED // Decision made
+  CLOSED // Final state
+  ESCALATED // Auto-escalated due to timeout
+}
+
+enum DisputeResolution {
+  REFUND_FULL
+  REFUND_PARTIAL
+  NO_REFUND
+  FORCE_COMPLETE
+  PENALIZE_BUYER
+  PENALIZE_SELLER
+  MUTUAL_AGREEMENT
+}
+
+model Dispute {
+  id Int @id @default(autoincrement())
+
+  // Relationships
+  orderId Int
+  order   Order @relation("OrderDisputes", fields: [orderId], references: [id])
+
+  raisedById Int // User who raised dispute
+  raisedBy   User @relation("DisputesRaised", fields: [raisedById], references: [id])
+
+  againstId Int // User being disputed
+  against   User @relation("DisputesAgainst", fields: [againstId], references: [id])
+
+  resolvedById Int? // Admin who resolved
+  resolvedBy   User? @relation("DisputesResolved", fields: [resolvedById], references: [id])
+
+  // Dispute Details
+  reason      DisputeReason
+  description String             @db.Text
+  status      DisputeStatus      @default(OPEN)
+  resolution  DisputeResolution?
+
+  // SLA Tracking
+  responseDeadline DateTime // Counterparty must respond by
+  reviewDeadline   DateTime? // Admin must review by
+  respondedAt      DateTime?
+  escalatedAt      DateTime?
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+
+  // Resolution Details
+  refundAmount Decimal? @db.Decimal(10, 2)
+  adminNotes   String?  @db.Text
+
+  // Trust Score Impact
+  trustScoreImpact Json? // { raisedBy: -0.1, against: -0.5 }
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  evidence  DisputeEvidence[]
+  responses DisputeResponse[]
+  timeline  DisputeTimeline[]
+  User      User?             @relation(fields: [userId], references: [id])
+  userId    Int?
+
+  @@index([orderId])
+  @@index([raisedById])
+  @@index([againstId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([responseDeadline])
+}
+
+model DisputeEvidence {
+  id        Int     @id @default(autoincrement())
+  disputeId Int
+  dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  uploadedById Int
+  uploadedBy   User @relation("DisputeEvidenceUploads", fields: [uploadedById], references: [id])
+
+  fileUrl     String // Cloudinary/S3 URL
+  fileType    String // image/jpeg, image/png
+  fileSize    Int // bytes
+  description String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([disputeId])
+}
+
+model DisputeResponse {
+  id        Int     @id @default(autoincrement())
+  disputeId Int
+  dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  respondedById Int
+  respondedBy   User @relation("DisputeResponses", fields: [respondedById], references: [id])
+
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([disputeId])
+}
+
+model DisputeTimeline {
+  id        Int     @id @default(autoincrement())
+  disputeId Int
+  dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  actorId Int? // Null for system events
+  actor   User? @relation("DisputeTimelineActor", fields: [actorId], references: [id])
+
+  event       String // "DISPUTE_RAISED", "EVIDENCE_UPLOADED", "RESOLVED"
+  description String @db.Text
+  metadata    Json? // Additional context
+
+  createdAt DateTime @default(now())
+
+  @@index([disputeId])
+  @@index([createdAt])
+}
+
+// User Verification System
+enum VerificationType {
+  EMAIL
+  PHONE
+  GOVERNMENT_ID
+  TRUSTED_LENDER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+  REVOKED
+}
+
+model UserVerification {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation("UserVerifications", fields: [userId], references: [id])
+
+  type   VerificationType
+  status VerificationStatus @default(PENDING)
+
+  // Type-specific data (encrypted)
+  verificationData Json? // Phone number, ID details, etc.
+
+  // Verification metadata
+  verifiedAt    DateTime?
+  expiresAt     DateTime? // For time-limited verifications
+  revokedAt     DateTime?
+  revokedReason String?
+
+  // Admin approval (for ID verification)
+  reviewedById Int?
+  reviewedBy   User?     @relation("VerificationsReviewed", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNotes  String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts VerificationAttempt[]
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+}
+
+model VerificationAttempt {
+  id             Int              @id @default(autoincrement())
+  verificationId Int
+  verification   UserVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  attemptType   String // "OTP_SENT", "OTP_VERIFIED", "ID_SUBMITTED"
+  success       Boolean
+  failureReason String?
+  metadata      Json? // IP, device info, etc.
+
+  createdAt DateTime @default(now())
+
+  @@index([verificationId])
+  @@index([createdAt])
+}
+
+model TrustedLenderMetrics {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation("TrustedLenderMetrics", fields: [userId], references: [id])
+
+  // Eligibility criteria
+  successfulRentals Int       @default(0)
+  totalRentals      Int       @default(0)
+  lastDisputeDate   DateTime?
+  accountAge        Int // days
+  currentTrustScore Decimal   @db.Decimal(3, 2)
+
+  // Badge status
+  isEligible     Boolean   @default(false)
+  badgeGrantedAt DateTime?
+  badgeRevokedAt DateTime?
+
+  // Recalculation tracking
+  lastCalculatedAt  DateTime @default(now())
+  nextCalculationAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isEligible])
+  @@index([nextCalculationAt])
 }

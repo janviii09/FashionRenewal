@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { WardrobeService } from './wardrobe.service';
 import { RecommendationService } from './recommendation.service';
 import { BrowseService } from './browse.service';
@@ -6,6 +6,8 @@ import { DiscoverService } from './discover.service';
 import { AffinityService } from '../affinity/affinity.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ItemAvailability } from '@prisma/client';
+import { CreateItemDto } from './dto/create-item.dto';
+import { UpdateItemDto } from './dto/update-item.dto';
 
 @Controller('wardrobe')
 export class WardrobeController {
@@ -23,7 +25,7 @@ export class WardrobeController {
      */
     @UseGuards(JwtAuthGuard)
     @Post()
-    async createItem(@Request() req, @Body() data: any) {
+    async createItem(@Request() req, @Body() data: CreateItemDto) {
         return this.wardrobeService.createItem(req.user.userId, data);
     }
 
@@ -153,13 +155,38 @@ export class WardrobeController {
     }
 
     /**
+     * Get item recommendations (public)
+     * GET /wardrobe/recommendations
+     * IMPORTANT: This MUST be before @Get(':id') to prevent "recommendations" being treated as an ID
+     */
+    @Get('recommendations')
+    async getRecommendations(
+        @Query('productId') productId: string,
+        @Query('limit') limit: string,
+    ) {
+        if (!productId) {
+            throw new BadRequestException('Product ID is required');
+        }
+        // Return just the recommendations array (frontend expects array, not object with meta)
+        const result = await this.recommendationService.getRecommendationsWithMetadata(
+            parseInt(productId),
+            limit ? parseInt(limit) : 12
+        );
+        return result.recommendations;
+    }
+
+    /**
      * Get a single item
      * GET /wardrobe/:id
      */
     @Get(':id')
     async getItem(@Param('id') id: string, @Request() req) {
+        const itemId = parseInt(id);
+        if (isNaN(itemId)) {
+            throw new BadRequestException('Invalid item ID');
+        }
         const userId = req.user?.userId; // Optional - may be unauthenticated
-        return this.wardrobeService.getItem(parseInt(id), userId);
+        return this.wardrobeService.getItem(itemId, userId);
     }
 
     /**
@@ -171,7 +198,7 @@ export class WardrobeController {
     async updateItem(
         @Request() req,
         @Param('id') id: string,
-        @Body() data: any,
+        @Body() data: UpdateItemDto,
     ) {
         return this.wardrobeService.updateItem(
             parseInt(id),

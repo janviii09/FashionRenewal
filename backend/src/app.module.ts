@@ -17,6 +17,9 @@ import { JobsModule } from './jobs/jobs.module';
 import { ReviewModule } from './review/review.module';
 import { ValidationModule } from './validation/validation.module';
 import { DeliveryModule } from './delivery/delivery.module';
+import { DisputeModule } from './dispute/dispute.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { VerificationModule } from './verification/verification.module';
 
 import { ActivityModule } from './activity/activity.module';
 
@@ -25,15 +28,16 @@ import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
     imports: [
-    ScheduleModule.forRoot(),
-    AffinityModule,
-    ActivityModule,
+        ScheduleModule.forRoot(),
+        AffinityModule,
+        ActivityModule,
         // Rate limiting: 10 requests per minute per IP
         ThrottlerModule.forRoot([{
             ttl: 60000, // 1 minute
             limit: 10, // 10 requests
         }]),
         PrismaModule,
+        CloudinaryModule,
         AuditModule,
         SubscriptionModule,
         PaymentModule,
@@ -48,6 +52,8 @@ import { ScheduleModule } from '@nestjs/schedule';
         ReviewModule,
         ValidationModule,
         DeliveryModule,
+        DisputeModule,
+        VerificationModule,
     ],
     controllers: [AppController],
     providers: [AppService],

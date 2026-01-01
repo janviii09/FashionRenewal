@@ -20,7 +20,7 @@ export class AdminService {
             where: { id: disputeId },
             data: {
                 status: 'RESOLVED',
-                resolution,
+                resolution: resolution as any, // Cast to DisputeResolution
                 resolvedAt: new Date(),
             },
         });

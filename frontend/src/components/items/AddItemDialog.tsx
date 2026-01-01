@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -82,6 +82,7 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [images, setImages] = useState<string[]>([]);
+    const [imageValidationError, setImageValidationError] = useState<string | null>(null);
     const { toast } = useToast();
 
     const form = useForm<AddItemFormData>({
@@ -100,6 +101,23 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
     });
 
     const watchAvailability = form.watch('availability');
+
+    // Validate images whenever availability or image count changes
+    useEffect(() => {
+        const marketplaceTypes = [
+            ItemAvailability.AVAILABLE_FOR_RENT,
+            ItemAvailability.AVAILABLE_FOR_SALE,
+            ItemAvailability.AVAILABLE_FOR_SWAP,
+        ];
+
+        const requiresMinImages = marketplaceTypes.includes(watchAvailability);
+
+        if (requiresMinImages && images.length < 4) {
+            setImageValidationError(`At least 4 images required for ${watchAvailability.toLowerCase().replace('_', ' ')} (${images.length} / 4)`);
+        } else {
+            setImageValidationError(null);
+        }
+    }, [watchAvailability, images.length]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -138,6 +156,22 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
     };
 
     const onSubmit = async (data: AddItemFormData) => {
+        // Final client-side validation for images
+        const marketplaceTypes = [
+            ItemAvailability.AVAILABLE_FOR_RENT,
+            ItemAvailability.AVAILABLE_FOR_SALE,
+            ItemAvailability.AVAILABLE_FOR_SWAP,
+        ];
+
+        if (marketplaceTypes.includes(data.availability) && images.length < 4) {
+            toast({
+                title: 'Validation Error',
+                description: 'At least 4 images are required for rent, sell, or exchange listings',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         try {
             setIsLoading(true);
 
@@ -154,6 +188,7 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
             setOpen(false);
             form.reset();
             setImages([]);
+            setImageValidationError(null);
             onItemAdded?.();
         } catch (error: any) {
             toast({
@@ -185,7 +220,22 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         {/* Image Upload */}
                         <div className="space-y-2">
-                            <Label>Images (optional, max 5)</Label>
+                            <div className="flex items-center justify-between">
+                                <Label>
+                                    Images
+                                    {watchAvailability !== ItemAvailability.PERSONAL_ONLY && (
+                                        <span className="ml-1 text-destructive">*</span>
+                                    )}
+                                </Label>
+                                <span className="text-xs text-muted-foreground">
+                                    {images.length} / 5
+                                    {watchAvailability !== ItemAvailability.PERSONAL_ONLY && (
+                                        <span className="ml-1 font-medium text-primary">
+                                            (4+ required for marketplace)
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
                             <div className="grid grid-cols-5 gap-2">
                                 {images.map((image, index) => (
                                     <div key={index} className="relative aspect-square overflow-hidden rounded-lg border">
@@ -194,6 +244,7 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                                             type="button"
                                             onClick={() => removeImage(index)}
                                             className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground"
+                                            aria-label={`Remove image ${index + 1}`}
                                         >
                                             <X className="h-3 w-3" />
                                         </button>
@@ -209,10 +260,16 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                                             multiple
                                             onChange={handleImageUpload}
                                             className="hidden"
+                                            aria-label="Upload images"
                                         />
                                     </label>
                                 )}
                             </div>
+                            {imageValidationError && (
+                                <p className="text-sm font-medium text-destructive" role="alert">
+                                    {imageValidationError}
+                                </p>
+                            )}
                         </div>
 
                         {/* Basic Info */}
@@ -420,7 +477,7 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" variant="gradient" disabled={isLoading}>
+                            <Button type="submit" variant="gradient" disabled={isLoading || !!imageValidationError}>
                                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isLoading ? 'Adding...' : 'Add Item'}
                             </Button>
