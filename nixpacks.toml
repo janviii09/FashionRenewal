@@ -15,4 +15,4 @@ cmds = [
 ]
 
 [start]
-cmd = "cd backend && npm run start:prod"
+cmd = "sh -c 'cd backend && npm run start:prod'"
