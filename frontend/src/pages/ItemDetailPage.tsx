@@ -66,7 +66,7 @@ export default function ItemDetailPage() {
             setLoading(true);
 
             try {
-                const response = await fetch(`http://localhost:3000/wardrobe/${id}`);
+                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/wardrobe/${id}`);
                 if (!response.ok) throw new Error('Item not found');
 
                 const data = await response.json();

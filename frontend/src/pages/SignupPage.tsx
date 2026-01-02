@@ -68,7 +68,7 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       // Call real backend API to create user
-      const signupResponse = await fetch('http://localhost:3000/users', {
+      const signupResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export default function SignupPage() {
       }
 
       // After signup, login to get the token
-      const loginResponse = await fetch('http://localhost:3000/auth/login', {
+      const loginResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
