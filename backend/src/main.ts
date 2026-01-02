@@ -15,9 +15,15 @@ async function bootstrap() {
     app.use(helmet());
 
     // Security: CORS configuration
+    const frontendUrl = process.env.FRONTEND_URL || 'https://fashion-renewal.vercel.app';
     const allowedOrigins = process.env.NODE_ENV === 'production'
-        ? [process.env.FRONTEND_URL || 'https://fashionrenewal.com']
+        ? [frontendUrl, 'https://fashion-renewal.vercel.app'] // Explicit fallback
         : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3001', 'http://localhost:8080', 'http://localhost:8081'];
+
+    console.log('🌐 CORS Configuration:');
+    console.log('   NODE_ENV:', process.env.NODE_ENV);
+    console.log('   FRONTEND_URL:', process.env.FRONTEND_URL);
+    console.log('   Allowed Origins:', allowedOrigins);
 
     app.enableCors({
         origin: allowedOrigins,
