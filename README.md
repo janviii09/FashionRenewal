@@ -66,13 +66,6 @@ FashionRenewal is a full-stack peer-to-peer fashion marketplace that enables use
 - **Validation**: class-validator + class-transformer
 - **Security**: Helmet, CORS, Rate Limiting
 
-### **Deployment**
-- **Frontend**: Vercel (Automatic deployments)
-- **Backend**: Railway (PostgreSQL + Node.js)
-- **CI/CD**: GitHub Actions ready
-
----
-
 ## 🚀 Getting Started
 
 ### **Prerequisites**
