@@ -26,11 +26,15 @@ async function bootstrap() {
     console.log('   Allowed Origins:', allowedOrigins);
 
     app.enableCors({
-        origin: allowedOrigins,
+        origin: true,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-session-id'],
     });
+    console.log('🌐 CORS ENABLED (DEBUG MODE)');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+
 
     // Global validation pipe with security options
     app.useGlobalPipes(

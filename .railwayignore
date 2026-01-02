@@ -1,0 +1,6 @@
+# Railway Configuration
+# This file tells Railway to ignore any Dockerfile and use nixpacks instead
+
+[build]
+builder = "NIXPACKS"
+nixpacksConfigPath = "nixpacks.toml"
