@@ -62,8 +62,9 @@ api.interceptors.response.use(
       // Clear auth storage
       localStorage.removeItem('auth-storage');
 
-      // Clear cart storage on session expiration
-      localStorage.removeItem('cart-storage');
+      // NOTE: Cart is NOT cleared on 401 anymore - persists across sessions
+      // TODO: Sync with backend cart when implementing full cart sync
+      // localStorage.removeItem('cart-storage');
 
       // Redirect to login page (only if not already there)
       if (!window.location.pathname.includes('/login')) {
@@ -188,6 +189,24 @@ export const deliveryApi = {
       notes,
       trackingNumber,
     }),
+};
+
+// Cart API
+export const cartApi = {
+  getCart: () => api.get('/cart'),
+
+  addItem: (data: { itemId: number; type: 'rent' | 'buy'; quantity?: number; dateFrom?: string; dateTo?: string }) =>
+    api.post('/cart/items', data),
+
+  updateItem: (id: number, data: { quantity?: number; dateFrom?: string; dateTo?: string }) =>
+    api.patch(`/cart/items/${id}`, data),
+
+  removeItem: (id: number) => api.delete(`/cart/items/${id}`),
+
+  clearCart: () => api.delete('/cart'),
+
+  syncCart: (items: Array<{ itemId: number; type: 'rent' | 'buy'; quantity?: number; dateFrom?: string; dateTo?: string }>) =>
+    api.post('/cart/sync', { items }),
 };
 
 export default api;

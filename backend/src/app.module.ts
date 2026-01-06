@@ -20,6 +20,7 @@ import { DeliveryModule } from "./delivery/delivery.module";
 import { DisputeModule } from "./dispute/dispute.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 import { VerificationModule } from "./verification/verification.module";
+import { CartModule } from "./cart/cart.module";
 
 import { ActivityModule } from "./activity/activity.module";
 
@@ -56,8 +57,9 @@ import { ScheduleModule } from "@nestjs/schedule";
     DeliveryModule,
     DisputeModule,
     VerificationModule,
+    CartModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -61,6 +61,9 @@ model User {
   verificationsReviewed UserVerification[]    @relation("VerificationsReviewed")
   trustedLenderMetrics  TrustedLenderMetrics? @relation("TrustedLenderMetrics")
 
+  // Cart relation
+  cart Cart? @relation("UserCart")
+
   @@index([email])
   @@index([deletedAt])
 }
@@ -109,6 +112,9 @@ model WardrobeItem {
   conditionHistory ItemConditionHistory[]
   validations      Validation[]
 
+  // Cart relation
+  cartItems CartItem[] @relation("CartItems")
+
   // Activity tracking relations
   activities     UserActivity[]   @relation("ItemActivities")
   recentlyViewed RecentlyViewed[] @relation("RecentlyViewedItems")
@@ -139,6 +145,39 @@ enum ItemCondition {
   GOOD
   FAIR
   WORN
+}
+
+// ============================================
+// CART SYSTEM
+// ============================================
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  user      User       @relation("UserCart", fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+model CartItem {
+  id        Int          @id @default(autoincrement())
+  cartId    Int
+  cart      Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  itemId    Int
+  item      WardrobeItem @relation("CartItems", fields: [itemId], references: [id], onDelete: Cascade)
+  type      String       // 'rent' or 'buy'
+  quantity  Int          @default(1)
+  dateFrom  DateTime?    // For rent items
+  dateTo    DateTime?    // For rent items
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([cartId, itemId])
+  @@index([cartId])
+  @@index([itemId])
 }
 
 model Order {

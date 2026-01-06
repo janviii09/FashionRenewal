@@ -33,8 +33,9 @@ export const useAuthStore = create<AuthState>()(
         // Clear auth state
         set({ user: null, token: null, isAuthenticated: false });
 
-        // Clear cart storage on logout
-        localStorage.removeItem('cart-storage');
+        // NOTE: Cart is NOT cleared on logout anymore - persists across sessions
+        // TODO: Implement backend cart sync to merge local + backend carts
+        // localStorage.removeItem('cart-storage');
       },
       setLoading: (isLoading) => set({ isLoading }),
     }),
