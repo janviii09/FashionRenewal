@@ -1,134 +1,135 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { ItemCondition } from "@prisma/client";
 
 @Injectable()
 export class ItemLifecycleService {
-    constructor(
-        private prisma: PrismaService,
-        private audit: AuditService,
-    ) { }
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
-    /**
-     * Record condition snapshot before/after rental
-     */
-    async recordConditionSnapshot(
-        itemId: number,
-        orderId: number,
-        conditionBefore: string,
-        conditionAfter: string,
-        reportedBy: number,
-        damageReport?: string,
-    ) {
-        const history = await this.prisma.itemConditionHistory.create({
-            data: {
-                itemId,
-                orderId,
-                conditionBefore,
-                conditionAfter,
-                damageReport,
-                reportedBy,
-            },
-        });
+  /**
+   * Record condition snapshot before/after rental
+   */
+  async recordConditionSnapshot(
+    itemId: number,
+    orderId: number,
+    conditionBefore: ItemCondition,
+    conditionAfter: ItemCondition,
+    reportedBy: number,
+    damageReport?: string,
+  ) {
+    const history = await this.prisma.itemConditionHistory.create({
+      data: {
+        itemId,
+        orderId,
+        conditionBefore,
+        conditionAfter,
+        damageReport,
+        reportedBy,
+      },
+    });
 
-        // Audit log
-        await this.audit.log(
-            'ITEM_CONDITION',
-            itemId,
-            'CONDITION_CHANGE',
-            reportedBy,
-            { condition: conditionBefore },
-            { condition: conditionAfter, damage: damageReport },
-        );
+    // Audit log
+    await this.audit.log(
+      "ITEM_CONDITION",
+      itemId,
+      "CONDITION_CHANGE",
+      reportedBy,
+      { condition: conditionBefore },
+      { condition: conditionAfter, damage: damageReport },
+    );
 
-        // Update item's current condition
-        await this.prisma.wardrobeItem.update({
-            where: { id: itemId },
-            data: { condition: conditionAfter as any },
-        });
+    // Update item's current condition
+    await this.prisma.wardrobeItem.update({
+      where: { id: itemId },
+      data: { condition: conditionAfter },
+    });
 
-        return history;
-    }
+    return history;
+  }
 
-    /**
-     * Transfer custody of item to another user
-     */
-    async transferCustody(itemId: number, toUserId: number, orderId?: number) {
-        const item = await this.prisma.wardrobeItem.findUnique({
-            where: { id: itemId },
-        });
+  /**
+   * Transfer custody of item to another user
+   */
+  async transferCustody(itemId: number, toUserId: number, orderId?: number) {
+    const item = await this.prisma.wardrobeItem.findUnique({
+      where: { id: itemId },
+    });
 
-        const updated = await this.prisma.wardrobeItem.update({
-            where: { id: itemId },
-            data: {
-                currentHolderId: toUserId,
-                custodyStartDate: new Date(),
-            },
-        });
+    const updated = await this.prisma.wardrobeItem.update({
+      where: { id: itemId },
+      data: {
+        currentHolderId: toUserId,
+        custodyStartDate: new Date(),
+      },
+    });
 
-        // Audit log
-        await this.audit.log(
-            'ITEM_CUSTODY',
-            itemId,
-            'CUSTODY_TRANSFER',
-            toUserId,
-            { holder: item.currentHolderId },
-            { holder: toUserId, orderId },
-        );
+    // Audit log
+    await this.audit.log(
+      "ITEM_CUSTODY",
+      itemId,
+      "CUSTODY_TRANSFER",
+      toUserId,
+      { holder: item.currentHolderId },
+      { holder: toUserId, orderId },
+    );
 
-        return updated;
-    }
+    return updated;
+  }
 
-    /**
-     * Return custody back to owner
-     */
-    async returnCustody(itemId: number) {
-        const item = await this.prisma.wardrobeItem.findUnique({
-            where: { id: itemId },
-            include: { owner: true },
-        });
+  /**
+   * Return custody back to owner
+   */
+  async returnCustody(itemId: number) {
+    const item = await this.prisma.wardrobeItem.findUnique({
+      where: { id: itemId },
+      include: { owner: true },
+    });
 
-        const updated = await this.prisma.wardrobeItem.update({
-            where: { id: itemId },
-            data: {
-                currentHolderId: item.ownerId,
-                custodyEndDate: new Date(),
-            },
-        });
+    const updated = await this.prisma.wardrobeItem.update({
+      where: { id: itemId },
+      data: {
+        currentHolderId: item.ownerId,
+        custodyEndDate: new Date(),
+      },
+    });
 
-        // Audit log
-        await this.audit.log(
-            'ITEM_CUSTODY',
-            itemId,
-            'CUSTODY_RETURNED',
-            item.ownerId,
-            { holder: item.currentHolderId },
-            { holder: item.ownerId },
-        );
+    // Audit log
+    await this.audit.log(
+      "ITEM_CUSTODY",
+      itemId,
+      "CUSTODY_RETURNED",
+      item.ownerId,
+      { holder: item.currentHolderId },
+      { holder: item.ownerId },
+    );
 
-        return updated;
-    }
+    return updated;
+  }
 
-    /**
-     * Report damage on an item
-     */
-    async reportDamage(
-        itemId: number,
-        orderId: number,
-        damageReport: string,
-        reportedBy: number,
-    ) {
-        const item = await this.prisma.wardrobeItem.findUnique({
-            where: { id: itemId },
-        });
+  /**
+   * Report damage on an item
+   */
+  async reportDamage(
+    itemId: number,
+    orderId: number,
+    damageReport: string,
+    reportedBy: number,
+  ) {
+    const item = await this.prisma.wardrobeItem.findUnique({
+      where: { id: itemId },
+    });
 
-        return this.recordConditionSnapshot(
-            itemId,
-            orderId,
-            item.condition,
-            'DAMAGED',
-            reportedBy,
-            damageReport,
-        );
-    }
+    return this.recordConditionSnapshot(
+      itemId,
+      orderId,
+      item.condition,
+      ItemCondition.WORN, // WORN is the closest valid condition for damaged items
+      reportedBy,
+      damageReport,
+    );
+  }
 }

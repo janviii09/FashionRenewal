@@ -1,5 +1,6 @@
 import { WardrobeItem } from '@/types';
 import { ItemCard } from './ItemCard';
+import { useAuthStore } from '@/stores/authStore';
 import { Loader2 } from 'lucide-react';
 
 interface ItemGridProps {
@@ -12,14 +13,23 @@ interface ItemGridProps {
         lg?: number;
         xl?: number;
     };
+    hideOwnItems?: boolean;
 }
 
 export function ItemGrid({
     items,
     loading = false,
     emptyMessage = 'No items found',
-    columns = { sm: 2, md: 3, lg: 3, xl: 4 }
+    columns = { sm: 2, md: 3, lg: 3, xl: 4 },
+    hideOwnItems = false
 }: ItemGridProps) {
+    const { user } = useAuthStore();
+
+    // Filter out own items if requested and user is logged in
+    const filteredItems = hideOwnItems && user
+        ? items.filter(item => item.ownerId !== user.id)
+        : items;
+
     if (loading) {
         return (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -34,7 +44,7 @@ export function ItemGrid({
         );
     }
 
-    if (items.length === 0) {
+    if (filteredItems.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-16 px-4">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted mb-4">
@@ -54,7 +64,7 @@ export function ItemGrid({
 
     return (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {items.map((item) => (
+            {filteredItems.map((item) => (
                 <ItemCard key={item.id} item={item} />
             ))}
         </div>

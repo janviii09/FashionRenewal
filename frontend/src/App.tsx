@@ -18,6 +18,7 @@ import WishlistPage from "@/pages/dashboard/WishlistPage";
 import OrdersPage from "@/pages/dashboard/OrdersPage";
 import RentalsPage from "@/pages/dashboard/RentalsPage";
 import SettingsPage from "@/pages/dashboard/SettingsPage";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,19 +40,24 @@ const App = () => (
             <Route path="/browse" element={<BrowsePage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/discover" element={<DiscoverFashionPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/items/:id" element={<ItemDetailPage />} />
             <Route path="/how-it-works" element={<Navigate to="/#how-it-works" replace />} />
           </Route>
 
-          {/* Dashboard Pages */}
-          <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="wardrobe" element={<WardrobePage />} />
-            <Route path="wishlist" element={<WishlistPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="rentals" element={<RentalsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+          {/* Protected Routes (require authentication) */}
+          <Route element={<ProtectedRoute />}>
+            {/* Checkout */}
+            <Route element={<PublicLayout />}>
+              <Route path="/checkout" element={<CheckoutPage />} />
+            </Route>
+            <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="wardrobe" element={<WardrobePage />} />
+              <Route path="wishlist" element={<WishlistPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="rentals" element={<RentalsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<NotFound />} />

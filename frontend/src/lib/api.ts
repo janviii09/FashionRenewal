@@ -52,6 +52,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle 401 responses (token expired or invalid)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.error('❌ 401 Unauthorized - Clearing auth and redirecting to login');
+
+      // Clear auth storage
+      localStorage.removeItem('auth-storage');
+
+      // Clear cart storage on session expiration
+      localStorage.removeItem('cart-storage');
+
+      // Redirect to login page (only if not already there)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth API
 export const authApi = {
   login: (data: LoginFormData) =>

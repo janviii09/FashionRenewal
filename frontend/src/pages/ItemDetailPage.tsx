@@ -305,13 +305,13 @@ export default function ItemDetailPage() {
                         {/* Availability Badges */}
                         <div className="flex flex-wrap gap-1.5">
                             <StatusBadge status={item.condition} />
-                            {(item.availability === 'AVAILABLE_FOR_RENT' || item.availability === 'AVAILABLE_FOR_BOTH') && (
+                            {(item.availability === 'AVAILABLE_FOR_RENT') && (
                                 <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 text-xs">
                                     <Calendar className="mr-1 h-3 w-3" />
                                     Available for Rent
                                 </Badge>
                             )}
-                            {(item.availability === 'AVAILABLE_FOR_SALE' || item.availability === 'AVAILABLE_FOR_BOTH') && (
+                            {(item.availability === 'AVAILABLE_FOR_SALE') && (
                                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 text-xs">
                                     <ShoppingBag className="mr-1 h-3 w-3" />
                                     Available for Sale
@@ -327,7 +327,7 @@ export default function ItemDetailPage() {
 
                         {/* Pricing - Clean */}
                         <div className="py-3 border-b border-border/50">
-                            {(item.availability === 'AVAILABLE_FOR_RENT' || item.availability === 'AVAILABLE_FOR_BOTH') && item.rentPricePerDay && (
+                            {(item.availability === 'AVAILABLE_FOR_RENT') && item.rentPricePerDay && (
                                 <div>
                                     <p className="text-xs font-medium text-muted-foreground mb-1">Rental Price</p>
                                     <div className="flex items-baseline gap-1.5">
@@ -336,7 +336,7 @@ export default function ItemDetailPage() {
                                     </div>
                                 </div>
                             )}
-                            {(item.availability === 'AVAILABLE_FOR_SALE' || item.availability === 'AVAILABLE_FOR_BOTH') && item.sellPrice && (
+                            {(item.availability === 'AVAILABLE_FOR_SALE') && item.sellPrice && (
                                 <div className="flex items-center gap-2 mt-2">
                                     <span className="text-xs text-muted-foreground">or buy for</span>
                                     <span className="text-xl font-bold text-foreground">${item.sellPrice}</span>
@@ -404,7 +404,7 @@ export default function ItemDetailPage() {
                         </div>
 
                         {/* Rental Date Picker - Clean */}
-                        {(item.availability === 'AVAILABLE_FOR_RENT' || item.availability === 'AVAILABLE_FOR_BOTH') && (
+                        {(item.availability === 'AVAILABLE_FOR_RENT') && (
                             <div className="space-y-3 py-4 border-b border-border/50">
                                 <h3 className="text-sm font-semibold text-foreground">Select Rental Period</h3>
                                 <Popover>
@@ -473,7 +473,7 @@ export default function ItemDetailPage() {
                         )}
 
                         {/* Buy Now Button */}
-                        {item.isAvailableForSale && item.sellPrice && (
+                        {item.availability === 'AVAILABLE_FOR_SALE' && item.sellPrice && (
                             <Button
                                 className="w-full h-11 bg-black hover:bg-black/90 text-white font-medium"
                                 onClick={handleBuyNow}
@@ -518,9 +518,8 @@ export default function ItemDetailPage() {
                                 <h3 className="mb-5 text-lg font-semibold text-foreground">Listed by</h3>
                                 <div className="flex items-start gap-4">
                                     <Avatar className="h-16 w-16 border-2 border-border shadow-md">
-                                        <AvatarImage src={owner.avatar} alt={owner.name} />
                                         <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-lg font-semibold text-white">
-                                            {owner.name.charAt(0)}
+                                            {owner.name?.charAt(0) || 'U'}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
@@ -534,11 +533,11 @@ export default function ItemDetailPage() {
                                 </div>
                                 <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl bg-background/50 p-4">
                                     <div className="text-center">
-                                        <p className="text-2xl font-bold text-foreground">{owner.itemsListed || 0}</p>
+                                        <p className="text-2xl font-bold text-foreground">-</p>
                                         <p className="mt-1 text-xs text-muted-foreground">Items Listed</p>
                                     </div>
                                     <div className="text-center border-l border-border">
-                                        <p className="text-2xl font-bold text-foreground">{owner.rentalsCompleted || 0}</p>
+                                        <p className="text-2xl font-bold text-foreground">-</p>
                                         <p className="mt-1 text-xs text-muted-foreground">Rentals Completed</p>
                                     </div>
                                 </div>

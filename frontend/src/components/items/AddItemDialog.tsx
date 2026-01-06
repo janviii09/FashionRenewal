@@ -176,8 +176,16 @@ export function AddItemDialog({ trigger, onItemAdded }: AddItemDialogProps) {
             setIsLoading(true);
 
             await wardrobeApi.createItem({
-                ...data,
+                title: data.title,
+                category: data.category,
+                condition: data.condition,
                 images,
+                description: data.description,
+                brand: data.brand,
+                size: data.size,
+                availability: data.availability,
+                rentPricePerDay: data.rentPricePerDay,
+                sellPrice: data.sellPrice,
             });
 
             toast({

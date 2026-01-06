@@ -1,9 +1,9 @@
-import { Module, Global } from '@nestjs/common';
-import { PaymentService } from './payment.service';
+import { Module, Global } from "@nestjs/common";
+import { PaymentService } from "./payment.service";
 
 @Global()
 @Module({
-    providers: [PaymentService],
-    exports: [PaymentService],
+  providers: [PaymentService],
+  exports: [PaymentService],
 })
-export class PaymentModule { }
+export class PaymentModule {}

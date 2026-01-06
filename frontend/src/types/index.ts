@@ -193,7 +193,7 @@ export interface CreateItemFormData {
   brand?: string;
   size?: string;
   condition: ItemCondition;
-  images?: string[];
+  images: string[]; // Required: images array must always be provided
   availability?: ItemAvailability;
   rentPricePerDay?: number;
   sellPrice?: number;

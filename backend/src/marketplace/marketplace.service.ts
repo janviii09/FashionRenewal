@@ -1,180 +1,211 @@
-import { Injectable, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Order, Prisma, OrderStatus, OrderType } from '@prisma/client';
-import { OrderStateMachineService } from './order-state-machine.service';
-import { AuditService } from '../audit/audit.service';
-import { SubscriptionService } from '../subscription/subscription.service';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { Order, Prisma, OrderStatus, OrderType } from "@prisma/client";
+import { OrderStateMachineService } from "./order-state-machine.service";
+import { AuditService } from "../audit/audit.service";
+import { SubscriptionService } from "../subscription/subscription.service";
 
 @Injectable()
 export class MarketplaceService {
-    constructor(
-        private prisma: PrismaService,
-        private stateMachine: OrderStateMachineService,
-        private audit: AuditService,
-        private subscriptionService: SubscriptionService,
-    ) { }
+  constructor(
+    private prisma: PrismaService,
+    private stateMachine: OrderStateMachineService,
+    private audit: AuditService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
-    /**
-     * CRITICAL: Create order with subscription enforcement
-     * Personal wardrobe is FREE - subscription only for marketplace
-     */
-    async createOrder(data: Prisma.OrderCreateInput, requesterId: number, idempotencyKey?: string): Promise<Order> {
-        // Basic validation: check if item exists
-        const item = await this.prisma.wardrobeItem.findUnique({
-            where: { id: data.item.connect.id, deletedAt: null }
-        });
-        if (!item) throw new BadRequestException('Item not found');
+  /**
+   * CRITICAL: Create order with subscription enforcement
+   * Personal wardrobe is FREE - subscription only for marketplace
+   */
+  async createOrder(
+    data: Prisma.OrderCreateInput,
+    requesterId: number,
+    idempotencyKey?: string,
+  ): Promise<Order> {
+    // Basic validation: check if item exists
+    const item = await this.prisma.wardrobeItem.findUnique({
+      where: { id: data.item.connect.id, deletedAt: null },
+    });
+    if (!item) throw new BadRequestException("Item not found");
 
-        // Anti double-booking: Check for overlapping rentals
-        if (data.type === OrderType.RENT && data.startDate && data.endDate) {
-            const startDate = data.startDate instanceof Date ? data.startDate : new Date(data.startDate as string);
-            const endDate = data.endDate instanceof Date ? data.endDate : new Date(data.endDate as string);
-            await this.checkDateConflict(data.item.connect.id, startDate, endDate);
-        }
-
-        // CRITICAL: Check subscription limits BEFORE creating order
-        // Personal wardrobe is ALWAYS free - this only applies to marketplace
-        if (data.type === OrderType.RENT || data.type === OrderType.SWAP) {
-            const check = await this.subscriptionService.checkUsage(
-                requesterId,
-                data.type as 'RENT' | 'SWAP'
-            );
-
-            if (!check.allowed) {
-                throw new ForbiddenException(
-                    check.reason || 'Subscription limit exceeded'
-                );
-            }
-        }
-
-        // Create order in transaction WITH subscription increment
-        // This prevents concurrent bypass of limits
-        const order = await this.prisma.$transaction(async (tx) => {
-            const newOrder = await tx.order.create({
-                data: {
-                    ...data,
-                    idempotencyKey,
-                }
-            });
-
-            // CRITICAL: Increment subscription usage IN TRANSACTION
-            // This ensures atomic operation - no concurrent bypass possible
-            if (data.type === OrderType.RENT || data.type === OrderType.SWAP) {
-                await this.subscriptionService.incrementUsageInTransaction(
-                    tx,
-                    requesterId,
-                    data.type as 'RENT' | 'SWAP'
-                );
-            }
-
-            // Audit log
-            await this.audit.log('ORDER', newOrder.id, 'CREATED', requesterId, null, newOrder);
-
-            return newOrder;
-        });
-
-        return order;
+    // Anti double-booking: Check for overlapping rentals
+    if (data.type === OrderType.RENT && data.startDate && data.endDate) {
+      const startDate =
+        data.startDate instanceof Date
+          ? data.startDate
+          : new Date(data.startDate as string);
+      const endDate =
+        data.endDate instanceof Date
+          ? data.endDate
+          : new Date(data.endDate as string);
+      await this.checkDateConflict(data.item.connect.id, startDate, endDate);
     }
 
-    /**
-     * Check for date conflicts (anti double-booking)
-     */
-    private async checkDateConflict(itemId: number, startDate: Date, endDate: Date): Promise<void> {
-        const overlappingOrders = await this.prisma.order.findMany({
-            where: {
-                itemId,
-                type: OrderType.RENT,
-                deletedAt: null,
-                status: {
-                    in: [
-                        OrderStatus.APPROVED,
-                        OrderStatus.PAID,
-                        OrderStatus.DISPATCHED,
-                        OrderStatus.DELIVERED,
-                    ],
-                },
-                OR: [
-                    {
-                        AND: [
-                            { startDate: { lte: endDate } },
-                            { endDate: { gte: startDate } },
-                        ],
-                    },
-                ],
-            },
-        });
+    // CRITICAL: Check subscription limits BEFORE creating order
+    // Personal wardrobe is ALWAYS free - this only applies to marketplace
+    if (data.type === OrderType.RENT || data.type === OrderType.SWAP) {
+      const check = await this.subscriptionService.checkUsage(
+        requesterId,
+        data.type as "RENT" | "SWAP",
+      );
 
-        if (overlappingOrders.length > 0) {
-            throw new ConflictException(
-                `Item is already booked for the selected dates. Conflicting order ID: ${overlappingOrders[0].id}`,
-            );
-        }
+      if (!check.allowed) {
+        throw new ForbiddenException(
+          check.reason || "Subscription limit exceeded",
+        );
+      }
     }
 
-    /**
-     * Update order status with state machine validation and audit logging
-     * Now includes optimistic locking to prevent concurrent updates
-     */
-    async updateOrderStatus(
-        orderId: number,
-        newStatus: OrderStatus,
-        userId: number,
-        expectedVersion?: number,
-    ): Promise<Order> {
-        const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-        if (!order) throw new BadRequestException('Order not found');
+    // Create order in transaction WITH subscription increment
+    // This prevents concurrent bypass of limits
+    const order = await this.prisma.$transaction(async (tx) => {
+      const newOrder = await tx.order.create({
+        data: {
+          ...data,
+          idempotencyKey,
+        },
+      });
 
-        // Optimistic locking check
-        if (expectedVersion !== undefined && order.version !== expectedVersion) {
-            throw new ConflictException(
-                `Order was modified by another process. Expected version ${expectedVersion}, got ${order.version}. Please refresh and try again.`,
-            );
-        }
+      // CRITICAL: Increment subscription usage IN TRANSACTION
+      // This ensures atomic operation - no concurrent bypass possible
+      if (data.type === OrderType.RENT || data.type === OrderType.SWAP) {
+        await this.subscriptionService.incrementUsageInTransaction(
+          tx,
+          requesterId,
+          data.type as "RENT" | "SWAP",
+        );
+      }
 
-        // Validate state transition
-        this.stateMachine.validateTransition(order.status, newStatus);
+      // Audit log
+      await this.audit.log(
+        "ORDER",
+        newOrder.id,
+        "CREATED",
+        requesterId,
+        null,
+        newOrder,
+      );
 
-        // Update with audit trail
-        const updatedOrder = await this.prisma.$transaction(async (tx) => {
-            const updated = await tx.order.update({
-                where: {
-                    id: orderId,
-                    ...(expectedVersion !== undefined && { version: expectedVersion }),
-                },
-                data: {
-                    status: newStatus,
-                    previousStatus: order.status,
-                    version: { increment: 1 },
-                },
-            });
+      return newOrder;
+    });
 
-            // Audit log
-            await this.audit.log(
-                'ORDER',
-                orderId,
-                'STATUS_CHANGE',
-                userId,
-                { status: order.status, version: order.version },
-                { status: newStatus, version: order.version + 1 },
-            );
+    return order;
+  }
 
-            return updated;
-        });
+  /**
+   * Check for date conflicts (anti double-booking)
+   */
+  private async checkDateConflict(
+    itemId: number,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<void> {
+    const overlappingOrders = await this.prisma.order.findMany({
+      where: {
+        itemId,
+        type: OrderType.RENT,
+        deletedAt: null,
+        status: {
+          in: [
+            OrderStatus.APPROVED,
+            OrderStatus.PAID,
+            OrderStatus.DISPATCHED,
+            OrderStatus.DELIVERED,
+          ],
+        },
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: endDate } },
+              { endDate: { gte: startDate } },
+            ],
+          },
+        ],
+      },
+    });
 
-        return updatedOrder;
+    if (overlappingOrders.length > 0) {
+      throw new ConflictException(
+        `Item is already booked for the selected dates. Conflicting order ID: ${overlappingOrders[0].id}`,
+      );
+    }
+  }
+
+  /**
+   * Update order status with state machine validation and audit logging
+   * Now includes optimistic locking to prevent concurrent updates
+   */
+  async updateOrderStatus(
+    orderId: number,
+    newStatus: OrderStatus,
+    userId: number,
+    expectedVersion?: number,
+  ): Promise<Order> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    if (!order) throw new BadRequestException("Order not found");
+
+    // Optimistic locking check
+    if (expectedVersion !== undefined && order.version !== expectedVersion) {
+      throw new ConflictException(
+        `Order was modified by another process. Expected version ${expectedVersion}, got ${order.version}. Please refresh and try again.`,
+      );
     }
 
-    async findAllOrders(userId: number, type: 'owner' | 'renter'): Promise<Order[]> {
-        if (type === 'owner') {
-            return this.prisma.order.findMany({
-                where: { ownerId: userId, deletedAt: null },
-                include: { item: true, renter: true }
-            });
-        } else {
-            return this.prisma.order.findMany({
-                where: { renterId: userId, deletedAt: null },
-                include: { item: true, owner: true }
-            });
-        }
+    // Validate state transition
+    this.stateMachine.validateTransition(order.status, newStatus);
+
+    // Update with audit trail
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: {
+          id: orderId,
+          ...(expectedVersion !== undefined && { version: expectedVersion }),
+        },
+        data: {
+          status: newStatus,
+          previousStatus: order.status,
+          version: { increment: 1 },
+        },
+      });
+
+      // Audit log
+      await this.audit.log(
+        "ORDER",
+        orderId,
+        "STATUS_CHANGE",
+        userId,
+        { status: order.status, version: order.version },
+        { status: newStatus, version: order.version + 1 },
+      );
+
+      return updated;
+    });
+
+    return updatedOrder;
+  }
+
+  async findAllOrders(
+    userId: number,
+    type: "owner" | "renter",
+  ): Promise<Order[]> {
+    if (type === "owner") {
+      return this.prisma.order.findMany({
+        where: { ownerId: userId, deletedAt: null },
+        include: { item: true, renter: true },
+      });
+    } else {
+      return this.prisma.order.findMany({
+        where: { renterId: userId, deletedAt: null },
+        include: { item: true, owner: true },
+      });
     }
+  }
 }

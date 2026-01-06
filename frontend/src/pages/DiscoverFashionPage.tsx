@@ -264,6 +264,7 @@ export default function DiscoverFashionPage() {
                             items={items}
                             loading={loading}
                             emptyMessage="No items match your filters. Try adjusting your search criteria."
+                            hideOwnItems={true}
                         />
 
                         {/* Pagination */}

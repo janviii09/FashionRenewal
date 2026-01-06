@@ -25,7 +25,7 @@ interface FilterSidebarProps {
 }
 
 const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const conditions: ItemCondition[] = ['LIKE_NEW', 'GOOD', 'FAIR'];
+const conditions: ItemCondition[] = [ItemCondition.LIKE_NEW, ItemCondition.GOOD, ItemCondition.FAIR];
 
 export function FilterSidebar({ filters, onFilterChange, itemCount, onClose }: FilterSidebarProps) {
     const [categories, setCategories] = useState<string[]>([]);
@@ -36,9 +36,9 @@ export function FilterSidebar({ filters, onFilterChange, itemCount, onClose }: F
         size: false,
         condition: false,
     });
-    
+
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-    
+
     // Fetch categories from API
     useEffect(() => {
         const fetchCategories = async () => {

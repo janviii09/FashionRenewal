@@ -29,7 +29,13 @@ export const useAuthStore = create<AuthState>()(
           user: state.user ? { ...state.user, ...updatedFields } : null,
         })),
       login: (user, token) => set({ user, token, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        // Clear auth state
+        set({ user: null, token: null, isAuthenticated: false });
+
+        // Clear cart storage on logout
+        localStorage.removeItem('cart-storage');
+      },
       setLoading: (isLoading) => set({ isLoading }),
     }),
     {
