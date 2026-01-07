@@ -19,6 +19,7 @@ import OrdersPage from "@/pages/dashboard/OrdersPage";
 import RentalsPage from "@/pages/dashboard/RentalsPage";
 import SettingsPage from "@/pages/dashboard/SettingsPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import VerifyEmailPage from "@/pages/VerifyEmailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           {/* Auth Pages (no layout) */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Public Pages */}
           <Route element={<PublicLayout />}>
